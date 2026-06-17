@@ -1,6 +1,6 @@
 import { computed as vueComputed, effectScope, shallowReactive, watchEffect, type EffectScope } from 'vue'
 import type { AnyNode, BuildContext, ListNode, NodeOptions, NodeSpec } from '../types'
-import { activeChecks, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue } from './utils'
+import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
 import { resolveMaybeWhen } from './when'
 
 export interface ListOptions<TItem, TKey extends PropertyKey, TItemNode extends AnyNode> extends NodeOptions<NodeValueArray<TItemNode>> {
@@ -36,8 +36,13 @@ export function list<
         },
       } as unknown as ListNode<TItemNode>
 
+      registerDebugNode(context, node, 'list')
+
       watchEffect(() => {
-        const source = options.from(context.root)
+        const source = context.debug.runWithReader(
+          { readerId: context.path, reason: 'list.from' },
+          () => options.from(context.self),
+        )
         const nextKeys = new Set<PropertyKey>()
 
         for (const sourceItem of source) {
@@ -47,7 +52,11 @@ export function list<
           if (!entries.has(key)) {
             const scope = effectScope()
             const itemNode = scope.run(() =>
-              options.item(sourceItem).build({ ...context, registerNode: undefined }),
+              options.item(sourceItem).build({
+                ...context,
+                path: childPath(context.path, String(key)),
+                registerNode: undefined,
+              }),
             ) as TItemNode
             entries.set(key, { node: itemNode, scope })
           }

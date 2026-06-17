@@ -1,6 +1,6 @@
 import { computed as vueComputed, effectScope, shallowReactive, watchEffect, type EffectScope } from 'vue'
 import type { AnyNode, BuildContext, NodeOptions, NodeSpec, RecordNode } from '../types'
-import { activeChecks, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue } from './utils'
+import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
 import { resolveMaybeWhen } from './when'
 
 export interface RecordOptions<TItem, TKey extends string, TItemNode extends AnyNode> extends NodeOptions<Record<string, TItemNode['value']>> {
@@ -34,6 +34,8 @@ export function record<
         },
       } as unknown as RecordNode<TItemNode, TKey>
 
+      registerDebugNode(context, node, 'record')
+
       const ensureProperty = (key: string) => {
         if (Object.prototype.hasOwnProperty.call(node, key)) {
           return
@@ -47,7 +49,10 @@ export function record<
       }
 
       watchEffect(() => {
-        const source = options.from(context.root)
+        const source = context.debug.runWithReader(
+          { readerId: context.path, reason: 'record.from' },
+          () => options.from(context.self),
+        )
         const nextKeys = new Set<string>()
 
         for (const sourceItem of source) {
@@ -58,7 +63,11 @@ export function record<
           if (!entries.has(key)) {
             const scope = effectScope()
             const itemNode = scope.run(() =>
-              options.item(sourceItem).build({ ...context, registerNode: undefined }),
+              options.item(sourceItem).build({
+                ...context,
+                path: childPath(context.path, key),
+                registerNode: undefined,
+              }),
             ) as TItemNode
             entries.set(key, { node: itemNode, scope })
           }

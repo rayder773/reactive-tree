@@ -96,9 +96,12 @@ export const wizard = createTree({
   ),
 
   mapping: when(
-    (self: WizardSelf) =>
-      self.currentStep.value === 'mapping' &&
-      self.filePreview !== undefined,
+    (self: WizardSelf) => {
+      const isMappingStep = self.currentStep.value === 'mapping'
+      const hasFilePreview = self.filePreview !== undefined
+
+      return isMappingStep && hasFilePreview
+    },
     () =>
       section({
         targets: computed((self: WizardSelf): readonly MappingTarget[] => {

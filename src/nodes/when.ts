@@ -1,5 +1,6 @@
-import { computed as vueComputed, effectScope, watchEffect, type EffectScope } from 'vue'
+import { effectScope, watchEffect, type EffectScope } from 'vue'
 import type { AnyNode, BuildContext, NodeSpec } from '../types'
+import { registerDebugNode } from './utils'
 
 export function when<TNode extends AnyNode>(
   condition: (self: any) => boolean,
@@ -26,17 +27,8 @@ export function when<TNode extends AnyNode>(
         activeScope?.stop()
         activeScope = undefined
         activeNode = undefined
+        context.debug.setNodeActive(context.path, false)
       }
-
-      watchEffect(() => {
-        if (condition(context.root)) {
-          if (!activeNode) {
-            mount()
-          }
-        } else if (activeNode) {
-          unmount()
-        }
-      }, { flush: 'sync' })
 
       const proxy = new Proxy(
         {},
@@ -64,7 +56,26 @@ export function when<TNode extends AnyNode>(
         },
       ) as TNode
 
+      registerDebugNode(context, proxy as AnyNode, 'when', false)
       context.registerNode?.(proxy)
+
+      watchEffect(() => {
+        const enabled = context.debug.runWithReader(
+          { readerId: context.path, reason: 'when' },
+          () => condition(context.self),
+        )
+
+        if (enabled) {
+          if (!activeNode) {
+            mount()
+          }
+          context.debug.setNodeActive(context.path, true)
+        } else if (activeNode) {
+          unmount()
+        } else {
+          context.debug.setNodeActive(context.path, false)
+        }
+      }, { flush: 'sync' })
 
       return proxy
     },

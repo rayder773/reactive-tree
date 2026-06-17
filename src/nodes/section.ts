@@ -1,6 +1,6 @@
 import { computed as vueComputed } from 'vue'
 import type { BuildContext, NodeOptions, NodeSpec, SectionChildren, SectionNode } from '../types'
-import { activeChecks, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue } from './utils'
+import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
 import { resolveMaybeWhen } from './when'
 
 export function section<TChildren extends SectionChildren>(
@@ -19,6 +19,7 @@ export function section<TChildren extends SectionChildren>(
 
       const childNodes = {} as Record<string, any>
 
+      registerDebugNode(context, node, 'section')
       context.registerNode?.(node)
 
       for (const key of Object.keys(children)) {
@@ -30,6 +31,7 @@ export function section<TChildren extends SectionChildren>(
 
         const child = children[key].build({
           ...context,
+          path: childPath(context.path, key),
           registerNode: earlyNode => {
             childNodes[key] = earlyNode
           },

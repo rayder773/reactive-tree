@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
 import type { BuildContext, NodeOptions, NodeSpec, StateNode } from '../types'
-import { activeChecks, diagnosticsFor, diagnosticsRefs } from './utils'
+import { activeChecks, diagnosticsFor, diagnosticsRefs, registerDebugNode } from './utils'
 import { normalizeCheckResult } from '../checks/check'
 
 export function state<T>(
@@ -42,6 +42,8 @@ export function state<T>(
           value.value = initialValue
         },
       } as unknown as StateNode<T>
+
+      registerDebugNode(context, node, 'state')
 
       Object.assign(
         node,

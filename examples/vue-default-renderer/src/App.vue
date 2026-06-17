@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DependencyGraph from './renderer/debug/DependencyGraph.vue'
 import TreeRenderer from './renderer/TreeRenderer.vue'
 import { wizard } from './uploadWizard.tree'
 </script>
@@ -14,6 +15,11 @@ import { wizard } from './uploadWizard.tree'
     </div>
 
     <TreeRenderer :tree="wizard" />
+
+    <hr />
+
+    <h2>Dependency graph</h2>
+    <DependencyGraph :tree="wizard" />
 
     <hr />
 

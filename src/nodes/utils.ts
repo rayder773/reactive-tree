@@ -20,7 +20,10 @@ export function diagnosticsFor<T>(
     }
 
     const result = normalizeCheckResult(
-      item.run(value, { root: context.root, node, phase: 'validate' }),
+      context.debug.runWithReader(
+        { readerId: node.__debug.id, reason: 'check' },
+        () => item.run(value, { root: context.self, node, phase: 'validate' }),
+      ),
     )
     const resultDiagnostics = result.diagnostic
 
@@ -64,4 +67,25 @@ export function nodeValue(node: AnyNode | undefined): unknown {
 
 export function nodeDiagnostics(node: AnyNode | undefined): Diagnostic[] {
   return node?.diagnostics.value ?? []
+}
+
+export function childPath(parentPath: string, key: string): string {
+  return parentPath && parentPath !== 'root' ? `${parentPath}.${key}` : key
+}
+
+export function registerDebugNode(
+  context: BuildContext,
+  node: AnyNode,
+  kind: string,
+  active = true,
+) {
+  const id = context.path || 'root'
+
+  context.debug.registerNode(node, {
+    id,
+    path: id,
+    kind,
+    label: node.label,
+    active,
+  })
 }

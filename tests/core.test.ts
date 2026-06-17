@@ -394,4 +394,182 @@ describe('reactive tree core', () => {
       canGoNext: true,
     })
   })
+
+  it('debug tracks computed reads of state.value', () => {
+    const tree = createTree({
+      source: state(1),
+      derived: computed(self => self.source.value + 1),
+    })
+
+    expect(tree.derived.value).toBe(2)
+    expect(tree.debug.readsOf('derived')).toContain('source.value')
+    expect(tree.debug.readBy('source')).toContain('derived')
+  })
+
+  it('debug tracks when condition dependencies', () => {
+    const tree = createTree({
+      enabled: state(true),
+      details: when(
+        self => self.enabled.value,
+        () => state('visible'),
+      ),
+    })
+
+    expect(tree.details?.value).toBe('visible')
+    expect(tree.debug.getEdges()).toMatchObject([
+      { readerId: 'details', targetId: 'enabled', targetProp: 'value', reason: 'when' },
+    ])
+  })
+
+  it('debug tracks switchNode source dependency', () => {
+    const tree = createTree({
+      mode: state<'a' | 'b'>('a'),
+      branch: switchNode(self => self.mode.value, {
+        a: () => state('A'),
+        b: () => state('B'),
+      }),
+    })
+
+    expect(tree.branch?.value).toBe('A')
+    expect(tree.debug.readsOf('branch')).toContain('mode.value')
+  })
+
+  it('debug tracks list.from dependency', () => {
+    const tree = createTree({
+      rowsSource: state([{ id: 1 }]),
+      rows: list({
+        from: self => self.rowsSource.value,
+        key: row => row.id,
+        item: row => state(row.id),
+      }),
+    })
+
+    expect(tree.rows.value).toEqual([1])
+    expect(tree.debug.getEdges()).toMatchObject([
+      { readerId: 'rows', targetId: 'rowsSource', targetProp: 'value', reason: 'list.from' },
+    ])
+  })
+
+  it('debug tracks record.from dependency', () => {
+    const tree = createTree({
+      targets: state([{ key: 'mpn' }]),
+      columns: record({
+        from: self => self.targets.value,
+        key: target => target.key,
+        item: target => state(target.key),
+      }),
+    })
+
+    expect(tree.columns.value).toEqual({ mpn: 'mpn' })
+    expect(tree.debug.getEdges()).toMatchObject([
+      { readerId: 'columns', targetId: 'targets', targetProp: 'value', reason: 'record.from' },
+    ])
+  })
+
+  it('debug tracks check dependencies through self', () => {
+    const tree = createTree({
+      minAllowed: state(3),
+      count: state(1, {
+        checks: [
+          check((value, context) => {
+            if (value < context.root.minAllowed.value) {
+              return error('tooSmall', 'Too small')
+            }
+          }),
+        ],
+      }),
+    })
+
+    expect(tree.count.errors.value).toMatchObject([{ code: 'tooSmall' }])
+    expect(tree.debug.getEdges()).toMatchObject([
+      { readerId: 'count', targetId: 'minAllowed', targetProp: 'value', reason: 'check' },
+    ])
+  })
+
+  it('debug clears stale dependencies when computed reruns', () => {
+    const tree = createTree({
+      mode: state<'a' | 'b'>('a'),
+      a: state(1),
+      b: state(2),
+      selected: computed(self =>
+        self.mode.value === 'a' ? self.a.value : self.b.value,
+      ),
+    })
+
+    expect(tree.selected.value).toBe(1)
+    expect(tree.debug.readsOf('selected')).toEqual(
+      expect.arrayContaining(['mode.value', 'a.value']),
+    )
+
+    tree.mode.set('b')
+    expect(tree.selected.value).toBe(2)
+    expect(tree.debug.readsOf('selected')).toEqual(
+      expect.arrayContaining(['mode.value', 'b.value']),
+    )
+    expect(tree.debug.readsOf('selected')).not.toContain('a.value')
+  })
+
+  it('debug updates conditional branch dependencies', () => {
+    const tree = createTree({
+      step: state<'upload' | 'mapping'>('upload'),
+      file: state<File | null>(null),
+      mapping: when(
+        self => self.step.value === 'mapping',
+        () => section({ ready: state(true) }),
+      ),
+      canGoNext: computed(self => {
+        if (self.step.value === 'upload') {
+          return self.file.value !== null
+        }
+
+        return self.mapping?.valid.value === true
+      }),
+    })
+
+    expect(tree.canGoNext.value).toBe(false)
+    expect(tree.debug.readsOf('canGoNext')).toEqual(
+      expect.arrayContaining(['step.value', 'file.value']),
+    )
+
+    tree.step.set('mapping')
+    expect(tree.canGoNext.value).toBe(true)
+    expect(tree.debug.readsOf('canGoNext')).toEqual(
+      expect.arrayContaining(['step.value', 'mapping.exists', 'mapping.valid']),
+    )
+    expect(tree.debug.readsOf('canGoNext')).not.toContain('file.value')
+  })
+
+  it('debug marks disappeared when node inactive', () => {
+    const tree = createTree({
+      enabled: state(true),
+      details: when(
+        self => self.enabled.value,
+        () => state('visible'),
+      ),
+    })
+
+    expect(tree.debug.getNodes().find(node => node.id === 'details')?.active).toBe(true)
+    tree.enabled.set(false)
+    expect(tree.details).toBeUndefined()
+    expect(tree.debug.getNodes().find(node => node.id === 'details')?.active).toBe(false)
+  })
+
+  it('debug does not duplicate edges across reruns', () => {
+    const tree = createTree({
+      source: state(1),
+      derived: computed(self => self.source.value + 1),
+    })
+
+    expect(tree.derived.value).toBe(2)
+    tree.source.set(2)
+    expect(tree.derived.value).toBe(3)
+    tree.source.set(3)
+    expect(tree.derived.value).toBe(4)
+
+    const edges = tree.debug
+      .getEdges()
+      .filter(edge => edge.readerId === 'derived' && edge.targetId === 'source')
+
+    expect(edges).toHaveLength(1)
+  })
 })

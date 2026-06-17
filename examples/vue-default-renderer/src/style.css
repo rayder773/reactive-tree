@@ -140,3 +140,97 @@ legend {
   color: #777;
   font-style: italic;
 }
+
+.dependency-graph {
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  background: #fff;
+  padding: 12px;
+}
+
+.dependency-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dependency-toolbar label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dependency-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 12px;
+}
+
+.dependency-svg-panel {
+  overflow: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.dependency-svg {
+  min-width: 760px;
+  width: 100%;
+  background: #fafafa;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node rect {
+  fill: #fff;
+  stroke: #aaa;
+}
+
+.graph-node:hover rect,
+.graph-node.selected rect {
+  fill: #eef5ff;
+  stroke: #4375b7;
+}
+
+.graph-node text {
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.dependency-details {
+  overflow: auto;
+  max-height: 320px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #f8f8f8;
+  padding: 10px;
+}
+
+.dependency-details h3,
+.dependency-details h4 {
+  margin: 8px 0;
+}
+
+.dependency-details ul {
+  margin: 4px 0 10px;
+  padding-left: 18px;
+}
+
+.dependency-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dependency-table th,
+.dependency-table td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.dependency-table th {
+  background: #eee;
+}

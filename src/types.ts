@@ -1,4 +1,5 @@
 import type { ComputedRef } from 'vue'
+import type { DebugNodeInfo, DebugStore } from './debug'
 
 export type DiagnosticLevel = 'error' | 'warning' | 'info'
 
@@ -43,6 +44,9 @@ export interface NodeSpec<TNode, TOptional extends boolean = false> {
 
 export interface BuildContext {
   root: any
+  self: any
+  path: string
+  debug: DebugStore
   registerNode?: (node: AnyNode) => void
 }
 
@@ -51,6 +55,7 @@ export interface BaseNode<TValue = unknown> {
   readonly label?: string
   readonly metadata?: unknown
   readonly checks?: readonly Check<any>[]
+  readonly __debug: DebugNodeInfo
   readonly value: TValue
   readonly valid: ComputedRef<boolean>
   readonly invalid: ComputedRef<boolean>
@@ -115,4 +120,6 @@ export type NodeValue<TNode> = TNode extends { value: infer TValueRef }
   ? TValueRef
   : never
 
-export type TreeNode<TChildren extends SectionChildren> = SectionNode<TChildren>
+export type TreeNode<TChildren extends SectionChildren> = SectionNode<TChildren> & {
+  readonly debug: DebugStore
+}

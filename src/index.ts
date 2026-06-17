@@ -22,6 +22,15 @@ export {
 } from './checks'
 
 export type {
+  DebugNodeInfo,
+  DebugStore,
+  DependencyEdge,
+  DependencyGraph,
+  DependencyReason,
+  DependencyTargetProp,
+} from './debug'
+
+export type {
   AnyNode,
   BaseNode,
   Check,

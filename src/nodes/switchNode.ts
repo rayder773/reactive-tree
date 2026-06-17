@@ -1,5 +1,6 @@
 import { effectScope, watchEffect, type EffectScope } from 'vue'
 import type { AnyNode, BuildContext, NodeSpec } from '../types'
+import { registerDebugNode } from './utils'
 
 export function switchNode<
   TDiscriminant extends PropertyKey,
@@ -19,32 +20,8 @@ export function switchNode<
         activeScope = undefined
         activeNode = undefined
         activeKey = undefined
+        context.debug.setNodeActive(context.path, false)
       }
-
-      watchEffect(() => {
-        const key = discriminant(context.root)
-
-        if (key === activeKey) {
-          return
-        }
-
-        unmount()
-
-        const factory = cases[key]
-
-          if (factory) {
-          activeKey = key
-          activeScope = effectScope()
-          activeNode = activeScope.run(() =>
-            factory().build({
-              ...context,
-              registerNode: node => {
-                activeNode = node
-              },
-            }),
-          ) as AnyNode
-        }
-      }, { flush: 'sync' })
 
       const proxy = new Proxy(
         {},
@@ -72,7 +49,39 @@ export function switchNode<
         },
       ) as any
 
+      registerDebugNode(context, proxy, 'switch', false)
       context.registerNode?.(proxy)
+
+      watchEffect(() => {
+        const key = context.debug.runWithReader(
+          { readerId: context.path, reason: 'switchNode' },
+          () => discriminant(context.self),
+        )
+
+        if (key === activeKey) {
+          return
+        }
+
+        unmount()
+
+        const factory = cases[key]
+
+          if (factory) {
+          activeKey = key
+          activeScope = effectScope()
+          activeNode = activeScope.run(() =>
+            factory().build({
+              ...context,
+              registerNode: node => {
+                activeNode = node
+              },
+            }),
+          ) as AnyNode
+          context.debug.setNodeActive(context.path, true)
+        } else {
+          context.debug.setNodeActive(context.path, false)
+        }
+      }, { flush: 'sync' })
 
       return proxy
     },
