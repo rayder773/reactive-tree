@@ -1,23 +1,57 @@
 import {
+  type ComputedNode,
   computed,
   createTree,
   fileType,
   manyOf,
   oneOf,
   record,
+  type RecordNode,
   section,
+  type StateNode,
   state,
   when,
 } from '../../../src'
 
+type UploadStep = 'upload' | 'mapping' | 'result'
+type UploadType = 'approvedVendorList' | 'customPartData'
+type ApprovedAction = 'createNew' | 'replaceExisting'
+type PreviewField = 'mpn' | 'manufacturer' | 'description' | 'category'
+
+type MappingTarget = {
+  key: PreviewField | 'imageUrl'
+  label: string
+  required: boolean
+}
+
+type WizardSelf = {
+  currentStep: StateNode<UploadStep>
+  upload: {
+    uploadType: StateNode<UploadType>
+    approvedAction?: StateNode<ApprovedAction>
+    file: StateNode<File | null>
+    previewFields: StateNode<PreviewField[]>
+    valid: { value: boolean }
+  }
+  filePreview?: {
+    columns: ComputedNode<string[]>
+    rowsCount: ComputedNode<number>
+  }
+  mapping?: {
+    targets: ComputedNode<readonly MappingTarget[]>
+    columns: RecordNode<StateNode<string | null>, MappingTarget['key']>
+    valid: { value: boolean }
+  }
+}
+
 export const wizard = createTree({
-  currentStep: state<'upload' | 'mapping' | 'result'>('upload', {
+  currentStep: state<UploadStep>('upload', {
     label: 'Current step',
     checks: [oneOf(['upload', 'mapping', 'result'] as const)],
   }),
 
   upload: section({
-    uploadType: state<'approvedVendorList' | 'customPartData'>(
+    uploadType: state<UploadType>(
       'approvedVendorList',
       {
         label: 'Upload type',
@@ -26,9 +60,9 @@ export const wizard = createTree({
     ),
 
     approvedAction: when(
-      self => self.upload.uploadType.value === 'approvedVendorList',
+      (self: WizardSelf) => self.upload.uploadType.value === 'approvedVendorList',
       () =>
-        state<'createNew' | 'replaceExisting'>('createNew', {
+        state<ApprovedAction>('createNew', {
           label: 'Action',
           checks: [oneOf(['createNew', 'replaceExisting'] as const)],
         }),
@@ -39,7 +73,7 @@ export const wizard = createTree({
       checks: [fileType(['xlsx', 'xls', 'csv'])],
     }),
 
-    previewFields: state<Array<'mpn' | 'manufacturer' | 'description' | 'category'>>(
+    previewFields: state<PreviewField[]>(
       ['mpn', 'manufacturer'],
       {
         label: 'Preview fields',
@@ -51,21 +85,23 @@ export const wizard = createTree({
   }),
 
   filePreview: when(
-    self => self.upload.file.value !== null,
+    (self: WizardSelf) => self.upload.file.value !== null,
     () =>
       section({
         columns: computed(() => ['MPN', 'Manufacturer', 'Description', 'Category']),
         rowsCount: computed(() => 100),
+      }, {
+        label: 'File preview 11',
       }),
   ),
 
   mapping: when(
-    self =>
+    (self: WizardSelf) =>
       self.currentStep.value === 'mapping' &&
       self.filePreview !== undefined,
     () =>
       section({
-        targets: computed(self => {
+        targets: computed((self: WizardSelf): readonly MappingTarget[] => {
           if (self.upload.uploadType.value === 'approvedVendorList') {
             return [
               { key: 'mpn', label: 'MPN', required: true },
@@ -83,18 +119,27 @@ export const wizard = createTree({
         }),
 
         columns: record({
-          from: self => self.mapping.targets.value,
-          key: target => target.key,
-          item: target =>
+          from: (self: WizardSelf) => self.mapping?.targets.value ?? [],
+          key: (target: MappingTarget) => target.key,
+          item: (target: MappingTarget) =>
             state<string | null>(null, {
               label: target.label,
-              checks: [oneOf(self => self.filePreview.columns.value)],
+              checks: [oneOf((self: WizardSelf) => self.filePreview?.columns.value ?? [])],
             }),
         }),
       }),
   ),
 
-  canGoNext: computed(self => {
+  test1: computed((self: WizardSelf) => {
+    return {
+      step: self.currentStep.value,
+      hasFilePreview: self.filePreview !== undefined,
+      hasMapping: self.mapping !== undefined,
+      columns: self.mapping?.columns.value ?? null,
+    }
+  }),
+
+  canGoNext: computed((self: WizardSelf) => {
     if (self.currentStep.value === 'upload') {
       return self.upload.file.value !== null && self.upload.valid.value
     }
