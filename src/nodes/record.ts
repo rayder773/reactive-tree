@@ -28,10 +28,11 @@ export function record<
         kind: 'record' as const,
         label: options.label,
         metadata: options.metadata,
+        checks,
         byKey(key: string) {
           return resolveMaybeWhen(entries.get(key)?.node) as TItemNode | undefined
         },
-      } as RecordNode<TItemNode, TKey>
+      } as unknown as RecordNode<TItemNode, TKey>
 
       const ensureProperty = (key: string) => {
         if (Object.prototype.hasOwnProperty.call(node, key)) {

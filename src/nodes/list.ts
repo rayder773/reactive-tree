@@ -30,10 +30,11 @@ export function list<
         kind: 'list' as const,
         label: options.label,
         metadata: options.metadata,
+        checks,
         byKey(key: PropertyKey) {
           return resolveMaybeWhen(entries.get(key)?.node) as TItemNode | undefined
         },
-      } as ListNode<TItemNode>
+      } as unknown as ListNode<TItemNode>
 
       watchEffect(() => {
         const source = options.from(context.root)

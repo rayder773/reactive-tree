@@ -6,6 +6,7 @@ import {
   error,
   fileType,
   list,
+  manyOf,
   maxLength,
   oneOf,
   record,
@@ -54,6 +55,19 @@ describe('reactive tree core', () => {
       { level: 'error', code: 'maxLength' },
     ])
     expect(tree.title.valid.value).toBe(false)
+  })
+
+  it('manyOf validates arrays of allowed values', () => {
+    const tree = createTree({
+      selected: state<Array<'mpn' | 'manufacturer' | 'category'>>(['mpn'], {
+        checks: [manyOf(['mpn', 'manufacturer', 'category'] as const)],
+      }),
+    })
+
+    expect(tree.selected.valid.value).toBe(true)
+    tree.selected.set(['mpn', 'unknown' as 'mpn'])
+    expect(tree.selected.errors.value).toMatchObject([{ code: 'manyOf' }])
+    expect(tree.selected.valid.value).toBe(false)
   })
 
   it('computed recalculates when dependencies change', () => {

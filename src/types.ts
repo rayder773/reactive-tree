@@ -50,6 +50,7 @@ export interface BaseNode<TValue = unknown> {
   readonly kind: string
   readonly label?: string
   readonly metadata?: unknown
+  readonly checks?: readonly Check<any>[]
   readonly value: TValue
   readonly valid: ComputedRef<boolean>
   readonly invalid: ComputedRef<boolean>

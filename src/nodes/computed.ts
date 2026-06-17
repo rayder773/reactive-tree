@@ -15,10 +15,11 @@ export function computed<T>(
         kind: 'computed' as const,
         label: options.label,
         metadata: options.metadata,
+        checks,
         get value() {
           return value.value
         },
-      } as ComputedNode<T>
+      } as unknown as ComputedNode<T>
 
       Object.assign(
         node,

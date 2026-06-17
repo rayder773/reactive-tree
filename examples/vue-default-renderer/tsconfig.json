@@ -4,11 +4,10 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
+    "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "declaration": true,
-    "outDir": "dist",
-    "types": ["vitest/globals"]
+    "types": ["node", "vite/client"]
   },
-  "include": ["src", "tests", "examples/*.ts", "index.ts"]
+  "include": ["src", "vite.config.ts"]
 }

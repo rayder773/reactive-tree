@@ -16,6 +16,7 @@ export function state<T>(
         kind: 'state' as const,
         label: options.label,
         metadata: options.metadata,
+        checks,
         get value() {
           return value.value
         },

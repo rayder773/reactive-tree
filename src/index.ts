@@ -11,6 +11,7 @@ export {
   check,
   error,
   fileType,
+  manyOf,
   max,
   maxLength,
   min,

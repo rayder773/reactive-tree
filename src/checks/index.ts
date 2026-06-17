@@ -1,6 +1,7 @@
 export { check } from './check'
 export { error, warning } from './diagnostics'
 export { fileType } from './fileType'
+export { manyOf } from './manyOf'
 export { max, min } from './number'
 export { oneOf } from './oneOf'
 export { required } from './required'

@@ -14,7 +14,8 @@ export function section<TChildren extends SectionChildren>(
         kind: 'section' as const,
         label: options.label,
         metadata: options.metadata,
-      } as SectionNode<TChildren>
+        checks,
+      } as unknown as SectionNode<TChildren>
 
       const childNodes = {} as Record<string, any>
 
