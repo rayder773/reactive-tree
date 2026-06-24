@@ -1,4 +1,4 @@
-import { computed, reactive, ref, type ComputedRef } from 'vue'
+import { computed, reactive, ref, toRaw, type ComputedRef } from 'vue'
 import type { AnyNode } from './types'
 
 export type DependencyTargetProp =
@@ -10,6 +10,8 @@ export type DependencyTargetProp =
   | 'diagnostics'
   | 'items'
   | 'byKey'
+  | 'status'
+  | 'error'
   | 'unknown'
 
 export type DependencyReason =
@@ -91,7 +93,7 @@ export function createDebugStore(): DebugStore {
   const edgesByKey = reactive(new Map<string, DependencyEdge>())
   const conditionalNodeIds = new Set<string>()
   const activeReaderStack: ActiveReader[] = []
-  const runId = ref(0)
+  let runId = 0
   const proxyCache = new WeakMap<object, any>()
 
   const store: DebugStore = {
@@ -130,10 +132,10 @@ export function createDebugStore(): DebugStore {
     },
 
     startReader(input) {
-      const nextRunId = runId.value + 1
-      runId.value = nextRunId
+      const nextRunId = runId + 1
+      runId = nextRunId
 
-      for (const [key, edge] of Array.from(edgesByKey.entries())) {
+      for (const [key, edge] of Array.from(toRaw(edgesByKey).entries())) {
         if (edge.readerId === input.readerId) {
           edgesByKey.delete(key)
         }
@@ -246,6 +248,10 @@ export function createDebugStore(): DebugStore {
               store.trackRead({ targetId: target.__debug.id, targetProp: 'items' })
             } else if (property === 'byKey') {
               store.trackRead({ targetId: target.__debug.id, targetProp: 'byKey' })
+            } else if (property === 'status') {
+              store.trackRead({ targetId: target.__debug.id, targetProp: 'status' })
+            } else if (property === 'error') {
+              store.trackRead({ targetId: target.__debug.id, targetProp: 'error' })
             }
 
             const child = Reflect.get(target, property, receiver)
@@ -260,7 +266,7 @@ export function createDebugStore(): DebugStore {
               !property.startsWith('__') &&
               child === undefined
             ) {
-              if (childId && nodesById.has(childId)) {
+              if (childId && toRaw(nodesById).has(childId)) {
                 store.trackRead({ targetId: childId, targetProp: 'exists' })
               }
             }

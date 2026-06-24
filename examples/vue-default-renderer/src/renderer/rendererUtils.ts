@@ -1,5 +1,6 @@
 import type {
   AnyNode,
+  AsyncNode,
   Check,
   ComputedNode,
   Diagnostic,
@@ -24,6 +25,10 @@ const NODE_INTERNAL_KEYS = new Set([
   'byKey',
   'set',
   'reset',
+  'status',
+  'error',
+  'refetch',
+  '__register',
 ])
 
 export type NodeEntry = {
@@ -66,6 +71,10 @@ export function isListNode(node: AnyNode): node is ListNode<AnyNode> {
 
 export function isRecordNode(node: AnyNode): node is RecordNode<AnyNode> {
   return node.kind === 'record'
+}
+
+export function isAsyncNode(node: AnyNode): node is AsyncNode<unknown> {
+  return node.kind === 'async'
 }
 
 export function childEntries(node: AnyNode): NodeEntry[] {

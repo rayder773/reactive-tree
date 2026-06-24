@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { AnyNode } from '../../../../src'
+import AsyncRenderer from './AsyncRenderer.vue'
 import ComputedRenderer from './ComputedRenderer.vue'
 import ListRenderer from './ListRenderer.vue'
 import RecordRenderer from './RecordRenderer.vue'
 import SectionRenderer from './SectionRenderer.vue'
 import StateRenderer from './StateRenderer.vue'
 import {
+  isAsyncNode,
   isComputedNode,
   isListNode,
   isRecordNode,
@@ -21,8 +23,13 @@ defineProps<{
 </script>
 
 <template>
+  <AsyncRenderer
+    v-if="isAsyncNode(node)"
+    :node="node"
+    :label="label"
+  />
   <StateRenderer
-    v-if="isStateNode(node)"
+    v-else-if="isStateNode(node)"
     :node="node"
     :root="root"
     :label="label"

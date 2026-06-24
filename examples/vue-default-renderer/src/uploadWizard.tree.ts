@@ -1,4 +1,6 @@
 import {
+  type AsyncNode,
+  asyncNode,
   type ComputedNode,
   computed,
   createTree,
@@ -12,6 +14,7 @@ import {
   state,
   when,
 } from '../../../src'
+import { createSimAdapter, error, loading, success } from '../../../src/adapters/sim'
 
 type UploadStep = 'upload' | 'mapping' | 'result'
 type UploadType = 'approvedVendorList' | 'customPartData'
@@ -24,8 +27,11 @@ type MappingTarget = {
   required: boolean
 }
 
+type ServerConfig = { maxFileSize: number; allowedTypes: string[] }
+
 type WizardSelf = {
   currentStep: StateNode<UploadStep>
+  serverConfig: AsyncNode<ServerConfig>
   upload: {
     uploadType: StateNode<UploadType>
     approvedAction?: StateNode<ApprovedAction>
@@ -47,8 +53,10 @@ type WizardSelf = {
 export const wizard = createTree({
   currentStep: state<UploadStep>('upload', {
     label: 'Current step',
-    checks: [oneOf(['upload', 'mapping', 'result'] as const)],
+    checks: [oneOf(['upload', 'mapping', 'result'])],
   }),
+
+  serverConfig: asyncNode<ServerConfig>({ label: 'Server config' }),
 
   upload: section({
     uploadType: state<UploadType>(
@@ -154,3 +162,20 @@ export const wizard = createTree({
     return false
   }),
 })
+
+const mockServerConfig: ServerConfig = { maxFileSize: 10485760, allowedTypes: ['xlsx', 'xls', 'csv'] }
+
+const env = (import.meta as { env?: Record<string, string> }).env
+
+createSimAdapter(wizard, [
+  {
+    node: wizard.serverConfig,
+    activeScenario: env?.VITE_SIM_serverConfig,
+    scenarios: {
+      success: success(mockServerConfig, { delay: 1200 }),
+      slow: success(mockServerConfig, { delay: 4000 }),
+      error: error('Failed to load server config', { status: 503 }),
+      loading: loading(),
+    },
+  },
+], env?.VITE_SIM_SCENARIO)

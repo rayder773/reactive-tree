@@ -123,3 +123,22 @@ export type NodeValue<TNode> = TNode extends { value: infer TValueRef }
 export type TreeNode<TChildren extends SectionChildren> = SectionNode<TChildren> & {
   readonly debug: DebugStore
 }
+
+export type AsyncStatus = 'idle' | 'loading' | 'revalidating' | 'success' | 'error'
+
+export interface AsyncError {
+  message: string
+  status?: number
+  code?: string
+  payload?: unknown
+}
+
+export interface AsyncNode<T = unknown> extends BaseNode<T | null> {
+  readonly kind: 'async'
+  readonly value: T | null
+  readonly status: AsyncStatus
+  readonly error: AsyncError | null
+  refetch(): void
+  /** @internal */
+  __register(fetcher: (signal: AbortSignal) => Promise<T>): void
+}

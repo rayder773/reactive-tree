@@ -141,6 +141,60 @@ legend {
   font-style: italic;
 }
 
+.async-node pre {
+  overflow: auto;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #eee;
+  padding: 8px;
+}
+
+.async-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.async-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+}
+
+.async-status--idle    { color: #888; }
+.async-status--loading { color: #2563eb; }
+.async-status--revalidating { color: #7c3aed; }
+.async-status--success { color: #16a34a; }
+.async-status--error   { color: #b00020; }
+
+.async-refetch {
+  margin-left: auto;
+  border: 1px solid #999;
+  border-radius: 4px;
+  background: white;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.async-refetch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.async-loading {
+  margin-top: 6px;
+  color: #2563eb;
+  font-style: italic;
+}
+
+.async-error {
+  margin-top: 6px;
+  color: #b00020;
+  font-size: 13px;
+}
+
 .dependency-graph {
   border: 1px solid #c8c8c8;
   border-radius: 6px;

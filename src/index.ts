@@ -1,4 +1,5 @@
 export { createTree } from './createTree'
+export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'
 export { record } from './nodes/record'
@@ -32,6 +33,9 @@ export type {
 
 export type {
   AnyNode,
+  AsyncError,
+  AsyncNode,
+  AsyncStatus,
   BaseNode,
   Check,
   CheckMode,
