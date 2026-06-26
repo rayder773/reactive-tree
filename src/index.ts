@@ -35,6 +35,7 @@ export type {
   AnyNode,
   AsyncError,
   AsyncNode,
+  AsyncNodeOptions,
   AsyncStatus,
   BaseNode,
   Check,

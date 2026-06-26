@@ -1,6 +1,8 @@
-import { ref } from 'vue'
-import type { AsyncError, AsyncNode, AsyncStatus, BuildContext, NodeOptions, NodeSpec } from '../types'
+import { ref, watchEffect } from 'vue'
+import type { AsyncError, AsyncNode, AsyncNodeOptions, AsyncStatus, BuildContext, NodeSpec } from '../types'
 import { diagnosticsRefs, registerDebugNode } from './utils'
+
+const UNSET = Symbol('unset')
 
 function parseError(err: unknown): AsyncError {
   if (err && typeof err === 'object') {
@@ -15,17 +17,28 @@ function parseError(err: unknown): AsyncError {
   return { message: String(err) }
 }
 
-export function asyncNode<T>(options: NodeOptions = {}): NodeSpec<AsyncNode<T>> {
+export function asyncNode<T, TInput = void>(options: AsyncNodeOptions<T, TInput> = {}): NodeSpec<AsyncNode<T, TInput>> {
   return {
-    build(context: BuildContext): AsyncNode<T> {
+    build(context: BuildContext): AsyncNode<T, TInput> {
       const valueRef = ref<T | null>(null)
       const statusRef = ref<AsyncStatus>('idle')
       const errorRef = ref<AsyncError | null>(null)
 
-      let fetcher: ((signal: AbortSignal) => Promise<T>) | null = null
+      let fetcher: ((input: TInput, signal: AbortSignal) => Promise<T>) | null = null
       let abortController: AbortController | null = null
+      let lastInput: TInput | typeof UNSET = UNSET
+      let frozen = false
 
-      async function execute(isRevalidating: boolean) {
+      function reset() {
+        abortController?.abort()
+        abortController = null
+        lastInput = UNSET
+        valueRef.value = null
+        statusRef.value = 'idle'
+        errorRef.value = null
+      }
+
+      async function execute(input: TInput, isRevalidating: boolean) {
         if (!fetcher) return
 
         abortController?.abort()
@@ -36,7 +49,7 @@ export function asyncNode<T>(options: NodeOptions = {}): NodeSpec<AsyncNode<T>> 
         errorRef.value = null
 
         try {
-          const result = await fetcher(signal)
+          const result = await fetcher(input, signal)
           if (!signal.aborted) {
             valueRef.value = result
             statusRef.value = 'success'
@@ -47,6 +60,27 @@ export function asyncNode<T>(options: NodeOptions = {}): NodeSpec<AsyncNode<T>> 
             errorRef.value = parseError(err)
           }
         }
+      }
+
+      if (options.trigger) {
+        const { trigger } = options
+        watchEffect(() => {
+          const triggerValue = context.debug.runWithReader(
+            { readerId: context.path, reason: 'async.trigger' },
+            () => trigger(context.self),
+          )
+
+          if (frozen) {
+            frozen = false
+          }
+
+          if (triggerValue != null) {
+            lastInput = triggerValue as TInput
+            execute(lastInput, false)
+          } else {
+            reset()
+          }
+        }, { flush: 'sync' })
       }
 
       const node = {
@@ -63,14 +97,30 @@ export function asyncNode<T>(options: NodeOptions = {}): NodeSpec<AsyncNode<T>> 
         get error() {
           return errorRef.value
         },
+        call(input: TInput) {
+          frozen = true
+          lastInput = input
+          execute(input, false)
+        },
         refetch() {
-          const isRevalidating = statusRef.value === 'success' || statusRef.value === 'revalidating'
-          execute(isRevalidating)
+          if (lastInput !== UNSET) {
+            const isRevalidating = statusRef.value === 'success' || statusRef.value === 'revalidating'
+            execute(lastInput as TInput, isRevalidating)
+          } else if (!options.trigger) {
+            execute(undefined as unknown as TInput, false)
+          }
         },
-        __register(fn: (signal: AbortSignal) => Promise<T>) {
+        __register(fn: (input: TInput, signal: AbortSignal) => Promise<T>) {
           fetcher = fn
+          if (options.trigger) {
+            const triggerValue = options.trigger(context.self)
+            if (triggerValue != null && !frozen) {
+              lastInput = triggerValue as TInput
+              execute(lastInput, false)
+            }
+          }
         },
-      } as unknown as AsyncNode<T>
+      } as unknown as AsyncNode<T, TInput>
 
       registerDebugNode(context, node, 'async')
 

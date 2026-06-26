@@ -21,6 +21,7 @@ export type DependencyReason =
   | 'list.from'
   | 'record.from'
   | 'check'
+  | 'async.trigger'
 
 export interface DebugNodeInfo {
   id: string

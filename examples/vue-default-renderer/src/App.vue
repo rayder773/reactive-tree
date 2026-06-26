@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import DependencyGraph from './renderer/debug/DependencyGraph.vue'
 import TreeRenderer from './renderer/TreeRenderer.vue'
-import { wizard } from './uploadWizard.tree'
+import { wizard } from './uploadWizard.real'
 </script>
 
 <template>

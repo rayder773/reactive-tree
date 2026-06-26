@@ -36,6 +36,10 @@ export interface NodeOptions<T = unknown> {
   metadata?: unknown
 }
 
+export interface AsyncNodeOptions<T = unknown, TInput = void> extends NodeOptions<T> {
+  trigger?: (self: any) => TInput | null
+}
+
 export interface NodeSpec<TNode, TOptional extends boolean = false> {
   __node?: TNode
   __optional?: TOptional
@@ -133,12 +137,13 @@ export interface AsyncError {
   payload?: unknown
 }
 
-export interface AsyncNode<T = unknown> extends BaseNode<T | null> {
+export interface AsyncNode<T = unknown, TInput = void> extends BaseNode<T | null> {
   readonly kind: 'async'
   readonly value: T | null
   readonly status: AsyncStatus
   readonly error: AsyncError | null
+  call(input: TInput): void
   refetch(): void
   /** @internal */
-  __register(fetcher: (signal: AbortSignal) => Promise<T>): void
+  __register(fetcher: (input: TInput, signal: AbortSignal) => Promise<T>): void
 }

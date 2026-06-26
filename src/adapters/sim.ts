@@ -55,15 +55,15 @@ export function loading(): SimScenario<never> {
   }
 }
 
-export interface SimBinding<T> {
-  node: AsyncNode<T>
+export interface SimBinding<T, TInput = any> {
+  node: AsyncNode<T, TInput>
   activeScenario?: string
   scenarios: Record<string, SimScenario<T>>
 }
 
-export function createSimAdapter<T>(
+export function createSimAdapter<T, TInput = any>(
   _tree: unknown,
-  bindings: SimBinding<T>[],
+  bindings: SimBinding<T, TInput>[],
   globalScenario?: string,
 ): void {
   for (const { node, activeScenario, scenarios } of bindings) {
@@ -73,7 +73,7 @@ export function createSimAdapter<T>(
 
     if (!scenario) continue
 
-    node.__register(signal => scenario.execute(signal))
+    node.__register((_input, signal) => scenario.execute(signal))
     node.refetch()
   }
 }
