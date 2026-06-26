@@ -1,6 +1,6 @@
 import { check } from './check'
 import { error } from './diagnostics'
-import type { CheckMode } from '../types'
+import type { CheckMode, FileData } from '../types'
 
 export function fileType(
   extensions: readonly string[],
@@ -10,7 +10,7 @@ export function fileType(
     extension.replace(/^\./, '').toLowerCase(),
   )
 
-  return check<File | null | undefined>(
+  return check<FileData | null | undefined>(
     value => {
       if (!value) {
         return undefined

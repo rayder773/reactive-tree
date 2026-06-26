@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import DependencyGraph from './renderer/debug/DependencyGraph.vue'
+import JsonView from './renderer/JsonView.vue'
 import TreeRenderer from './renderer/TreeRenderer.vue'
 import { wizard } from './uploadWizard.real'
 </script>
@@ -24,7 +25,7 @@ import { wizard } from './uploadWizard.real'
     <hr />
 
     <h2>Tree value</h2>
-    <pre class="debug-block">{{ wizard.value }}</pre>
+    <pre class="debug-block"><JsonView :value="wizard.value" :indent="1" /></pre>
 
     <h2>Diagnostics</h2>
     <pre class="debug-block">{{ wizard.diagnostics.value }}</pre>

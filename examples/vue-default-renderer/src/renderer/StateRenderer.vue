@@ -9,6 +9,7 @@ import {
   oneOfOptions,
   stringifyValue,
 } from './rendererUtils'
+import { fileToData } from './fileUtils'
 
 const props = defineProps<{
   node: StateNode<unknown>
@@ -39,8 +40,9 @@ function setFromSelect(event: Event) {
   props.node.set(selected === '' ? null : selected)
 }
 
-function setFromFile(event: Event) {
-  props.node.set((event.target as HTMLInputElement).files?.[0] ?? null)
+async function setFromFile(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  props.node.set(file ? await fileToData(file) : null)
 }
 
 function isSelected(option: unknown): boolean {

@@ -128,6 +128,14 @@ export type TreeNode<TChildren extends SectionChildren> = SectionNode<TChildren>
   readonly debug: DebugStore
 }
 
+export interface FileData {
+  name: string
+  type: string
+  size: number
+  lastModified: number
+  base64: string
+}
+
 export type AsyncStatus = 'idle' | 'loading' | 'revalidating' | 'success' | 'error'
 
 export interface AsyncError {

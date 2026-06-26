@@ -1,4 +1,4 @@
-import { asyncNode, type AsyncNode, createTree, fileType, oneOf, state, type StateNode, when } from "../../../src";
+import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, state, type StateNode, when } from "../../../src";
 import { createSimAdapter, error, loading, success } from '../../../src/adapters/sim'
 
 export const wizard = createTree({
@@ -21,12 +21,12 @@ export const wizard = createTree({
 			}),
 	),
 
-	file: state<File | null>(null, {
+	file: state<FileData | null>(null, {
 		label: 'File',
-		checks: [fileType(['xlsx', 'xls', 'csv'])],
+		checks: [fileType(['xlsx', 'xls', 'csv', 'png', 'pdf'])],
 	}),
 
-	uploadedFileId: asyncNode<{ id: string }, File>({
+	uploadedFileId: asyncNode<{ id: string }, FileData>({
 		label: 'Uploaded file ID',
 		trigger: (self: WizardSelf) => self.file.value,
 	}),
@@ -36,8 +36,8 @@ type WizardSelf = {
 	currentStep: StateNode<UploadStep>
 	uploadType: StateNode<UploadType>
 	approvedAction?: StateNode<ApprovedAction>
-	file: StateNode<File | null>
-	uploadedFileId: AsyncNode<{ id: string }, File>
+	file: StateNode<FileData | null>
+	uploadedFileId: AsyncNode<{ id: string }, FileData>
 }
 
 type ApprovedAction = 'createNew' | 'replaceExisting'

@@ -22,6 +22,8 @@ export {
   warning,
 } from './checks'
 
+export type { FileData } from './types'
+
 export type {
   DebugNodeInfo,
   DebugStore,

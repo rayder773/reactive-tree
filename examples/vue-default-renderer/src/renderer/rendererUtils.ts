@@ -101,9 +101,18 @@ export function nodeTitle(node: AnyNode, fallback: string): string {
   return node.label || fallback
 }
 
+function isFileData(value: unknown): value is { name: string; size: number } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'name' in value &&
+    'base64' in value
+  )
+}
+
 export function stringifyValue(value: unknown): string {
-  if (value instanceof File) {
-    return value.name
+  if (isFileData(value)) {
+    return `${value.name} (${(value.size / 1024).toFixed(1)} KB)`
   }
 
   if (typeof value === 'string') {
