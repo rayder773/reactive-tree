@@ -7,15 +7,28 @@ import { wizard } from './uploadWizard.real'
 
 <template>
   <main class="app-shell">
-    <h1>Vue Default Tree Renderer</h1>
+    <TreeRenderer :tree="wizard">
+      <template #[wizard.uploadType.id]="{ children }">
+        <h2>Выберите тип загрузки</h2>
+        <component :is="children" />
+      </template>
 
-    <div class="toolbar">
-      <button type="button" @click="wizard.currentStep.set('upload')">Upload</button>
-      <button type="button" @click="wizard.currentStep.set('mapping')">Mapping</button>
-      <button type="button" @click="wizard.currentStep.set('result')">Result</button>
-    </div>
+      <template #[wizard.test.id]="{ children }">
+        <h2>Тестовая секция 11</h2>
+        <component :is="children" />
+      </template>
 
-    <TreeRenderer :tree="wizard" />
+       <template #[wizard.test.innerSection.id]="{ children }">
+        <h2>Внутренняя секция</h2>
+        <component :is="children" />
+      </template>
+
+      <template #[wizard.test.innerSection.innerState.id]="{ children }">
+        <h2>Внутренняя секция - внутреннее состояние</h2>
+        <component :is="children" />
+      </template>
+      
+    </TreeRenderer>
 
     <hr />
 

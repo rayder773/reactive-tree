@@ -85,6 +85,7 @@ export function asyncNode<T, TInput = void>(options: AsyncNodeOptions<T, TInput>
 
       const node = {
         kind: 'async' as const,
+        id: options.id,
         label: options.label,
         metadata: options.metadata,
         checks: [],

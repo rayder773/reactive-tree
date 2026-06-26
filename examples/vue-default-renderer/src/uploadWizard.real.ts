@@ -1,4 +1,4 @@
-import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, state, type StateNode, when } from "../../../src";
+import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, section, state, type StateNode, when } from "../../../src";
 import { createSimAdapter, error, loading, success } from '../../../src/adapters/sim'
 
 export const wizard = createTree({
@@ -8,6 +8,7 @@ export const wizard = createTree({
 	}),
 
 	uploadType: state<UploadType>('approvedVendorList', {
+		id: 'upload-type',
 		label: 'Upload type',
 		checks: [oneOf(['approvedVendorList', 'customPartData'])],
 	}),
@@ -30,6 +31,21 @@ export const wizard = createTree({
 		label: 'Uploaded file ID',
 		trigger: (self: WizardSelf) => self.file.value,
 	}),
+
+	test: section({
+		testState: state<string>('test value', {
+			id: 'test-state'
+		}),
+		innerSection: section({
+			innerState: state<string>('inner value', {
+				id: 'inner-state'
+			})
+		}, {
+			id: 'inner-section',
+		})
+	}, {
+		id: 'test-section',
+	})
 })
 
 type WizardSelf = {

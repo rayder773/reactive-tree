@@ -1,4 +1,5 @@
-<script setup lang="ts">
+<script lang="ts">
+import { defineComponent, inject, markRaw, h, type PropType, type Slots } from 'vue'
 import type { AnyNode } from '../../../../src'
 import AsyncRenderer from './AsyncRenderer.vue'
 import ComputedRenderer from './ComputedRenderer.vue'
@@ -15,49 +16,42 @@ import {
   isStateNode,
 } from './rendererUtils'
 
-defineProps<{
-  node: AnyNode
-  root: AnyNode
-  label?: string
-}>()
-</script>
+function renderDefault(node: AnyNode, root: AnyNode, label?: string) {
+  if (isAsyncNode(node)) return h(AsyncRenderer, { node, label })
+  if (isStateNode(node)) return h(StateRenderer, { node, root, label })
+  if (isComputedNode(node)) return h(ComputedRenderer, { node, label })
+  if (isListNode(node)) return h(ListRenderer, { node, root, label })
+  if (isRecordNode(node)) return h(RecordRenderer, { node, root, label })
+  if (isSectionNode(node)) return h(SectionRenderer, { node, root, label })
+  return h('div', { class: 'node unknown-node' }, `Unknown node: ${label}`)
+}
 
-<template>
-  <AsyncRenderer
-    v-if="isAsyncNode(node)"
-    :node="node"
-    :label="label"
-  />
-  <StateRenderer
-    v-else-if="isStateNode(node)"
-    :node="node"
-    :root="root"
-    :label="label"
-  />
-  <ComputedRenderer
-    v-else-if="isComputedNode(node)"
-    :node="node"
-    :label="label"
-  />
-  <ListRenderer
-    v-else-if="isListNode(node)"
-    :node="node"
-    :root="root"
-    :label="label"
-  />
-  <RecordRenderer
-    v-else-if="isRecordNode(node)"
-    :node="node"
-    :root="root"
-    :label="label"
-  />
-  <SectionRenderer
-    v-else-if="isSectionNode(node)"
-    :node="node"
-    :root="root"
-    :label="label"
-  />
-  <div v-else class="node unknown-node">
-    Unknown node: {{ label }}
-  </div>
-</template>
+export default defineComponent({
+  name: 'NodeRenderer',
+  props: {
+    node: { type: Object as PropType<AnyNode>, required: true },
+    root: { type: Object as PropType<AnyNode>, required: true },
+    label: { type: String },
+  },
+  setup(props) {
+    const treeSlots = inject<Slots>('treeSlots', {})
+    const getHide = inject<() => AnyNode[]>('treeHide', () => [])
+
+    // Created once — stable reference for Vue diffing when used as <component :is="children" />
+    const children = markRaw(() => renderDefault(props.node, props.root, props.label))
+
+    return () => {
+      const { node, root, label } = props
+
+      if (getHide().includes(node)) return null
+
+      const slotFn = node.id ? treeSlots[node.id] : undefined
+      if (slotFn) {
+        return slotFn({ node, children })
+      }
+
+      return renderDefault(node, root, label)
+    }
+  },
+})
+</script>

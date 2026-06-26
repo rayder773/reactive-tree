@@ -31,6 +31,7 @@ export interface Check<T = unknown> {
 }
 
 export interface NodeOptions<T = unknown> {
+  id?: string
   label?: string
   checks?: Array<Check<T> | null | undefined | false>
   metadata?: unknown
@@ -56,6 +57,7 @@ export interface BuildContext {
 
 export interface BaseNode<TValue = unknown> {
   readonly kind: string
+  readonly id?: string
   readonly label?: string
   readonly metadata?: unknown
   readonly checks?: readonly Check<any>[]

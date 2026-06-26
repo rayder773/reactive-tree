@@ -12,6 +12,7 @@ export function section<TChildren extends SectionChildren>(
       const checks = activeChecks(options)
       const node = {
         kind: 'section' as const,
+        id: options.id,
         label: options.label,
         metadata: options.metadata,
         checks,

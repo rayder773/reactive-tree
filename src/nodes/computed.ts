@@ -18,6 +18,7 @@ export function computed<T>(
 
       const node = {
         kind: 'computed' as const,
+        id: options.id,
         label: options.label,
         metadata: options.metadata,
         checks,

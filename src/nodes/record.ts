@@ -26,6 +26,7 @@ export function record<
 
       const node = {
         kind: 'record' as const,
+        id: options.id,
         label: options.label,
         metadata: options.metadata,
         checks,

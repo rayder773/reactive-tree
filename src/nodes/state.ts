@@ -14,6 +14,7 @@ export function state<T>(
 
       const node = {
         kind: 'state' as const,
+        id: options.id,
         label: options.label,
         metadata: options.metadata,
         checks,

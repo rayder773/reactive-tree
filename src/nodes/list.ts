@@ -28,6 +28,7 @@ export function list<
 
       const node = {
         kind: 'list' as const,
+        id: options.id,
         label: options.label,
         metadata: options.metadata,
         checks,
