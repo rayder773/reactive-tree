@@ -1,12 +1,17 @@
 import { computed as vueComputed, effectScope, shallowReactive, watchEffect, type EffectScope } from 'vue'
-import type { AnyNode, BuildContext, NodeOptions, NodeSpec, RecordNode } from '../types'
+import type { AnyNode, BuildContext, NodeOptions, NodeSpec, RecordNode, SectionChildren } from '../types'
 import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
 import { resolveMaybeWhen } from './when'
+import { section } from './section'
+
+function isNodeSpec(value: unknown): value is NodeSpec<any, any> {
+  return typeof value === 'object' && value !== null && 'build' in value && typeof (value as any).build === 'function'
+}
 
 export interface RecordOptions<TItem, TKey extends string, TItemNode extends AnyNode> extends NodeOptions<Record<string, TItemNode['value']>> {
-  from: (self: any) => readonly TItem[]
+  from: (self: any, data?: any) => readonly TItem[]
   key: (item: TItem) => TKey
-  item: (item: TItem) => NodeSpec<TItemNode>
+  item: (item: TItem) => NodeSpec<TItemNode> | SectionChildren
 }
 
 export function record<
@@ -52,7 +57,7 @@ export function record<
       watchEffect(() => {
         const source = context.debug.runWithReader(
           { readerId: context.path, reason: 'record.from' },
-          () => options.from(context.self),
+          () => options.from(context.self, context.data),
         )
         const nextKeys = new Set<string>()
 
@@ -63,8 +68,10 @@ export function record<
 
           if (!entries.has(key)) {
             const scope = effectScope()
+            const result = options.item(sourceItem)
+            const spec = isNodeSpec(result) ? result : section(result as SectionChildren)
             const itemNode = scope.run(() =>
-              options.item(sourceItem).build({
+              spec.build({
                 ...context,
                 path: childPath(context.path, key),
                 registerNode: undefined,

@@ -58,6 +58,7 @@ type ActiveReader = {
 export interface DebugStore {
   nodes: ComputedRef<DebugNodeInfo[]>
   edges: ComputedRef<DependencyEdge[]>
+  crossEdges: ComputedRef<DependencyEdge[]>
   registerNode(node: AnyNode, info: Omit<DebugNodeInfo, 'active'> & { active?: boolean }): void
   setNodeActive(id: string, active: boolean): void
   startReader(input: { readerId: string; reason: DependencyReason }): void
@@ -100,6 +101,9 @@ export function createDebugStore(): DebugStore {
   const store: DebugStore = {
     nodes: computed(() => Array.from(nodesById.values())),
     edges: computed(() => Array.from(edgesByKey.values())),
+    crossEdges: computed(() =>
+      Array.from(edgesByKey.values()).filter(edge => !nodesById.has(edge.targetId)),
+    ),
 
     registerNode(node, info) {
       const id = info.id

@@ -3,6 +3,10 @@ import type { BuildContext, NodeOptions, NodeSpec, SectionChildren, SectionNode 
 import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
 import { resolveMaybeWhen } from './when'
 
+function isNodeSpec(value: unknown): value is NodeSpec<any, any> {
+  return typeof value === 'object' && value !== null && 'build' in value && typeof (value as any).build === 'function'
+}
+
 export function section<TChildren extends SectionChildren>(
   children: TChildren,
   options: NodeOptions<Record<string, unknown>> = {},
@@ -30,7 +34,9 @@ export function section<TChildren extends SectionChildren>(
           get: () => resolveMaybeWhen(childNodes[key]),
         })
 
-        const child = children[key].build({
+        const childValue = children[key]
+        const childSpec = isNodeSpec(childValue) ? childValue : section(childValue as SectionChildren)
+        const child = childSpec.build({
           ...context,
           path: childPath(context.path, key),
           registerNode: earlyNode => {

@@ -10,6 +10,7 @@ export type GraphLine = {
   edge: DependencyEdge
   from: GraphPoint
   to: GraphPoint
+  isCross: boolean
 }
 
 export type GraphLayout = {
@@ -20,10 +21,18 @@ export type GraphLayout = {
   lines: GraphLine[]
 }
 
-export function buildGraphLayout(edges: readonly DependencyEdge[]): GraphLayout {
-  const readers = Array.from(new Set(edges.map(edge => edge.readerId))).sort()
+export function buildGraphLayout(
+  edges: readonly DependencyEdge[],
+  crossEdges: readonly DependencyEdge[] = [],
+): GraphLayout {
+  const allEdges = [...edges, ...crossEdges]
+  const crossEdgeKeys = new Set(
+    crossEdges.map(e => `${e.readerId}\0${e.targetId}\0${e.targetProp}\0${e.reason}`),
+  )
+
+  const readers = Array.from(new Set(allEdges.map(edge => edge.readerId))).sort()
   const targets = Array.from(
-    new Set(edges.map(edge => `${edge.targetId}.${edge.targetProp}`)),
+    new Set(allEdges.map(edge => `${edge.targetId}.${edge.targetProp}`)),
   ).sort()
 
   const rowHeight = 38
@@ -50,11 +59,14 @@ export function buildGraphLayout(edges: readonly DependencyEdge[]): GraphLayout 
     height,
     readers: readerPoints,
     targets: targetPoints,
-    lines: edges.flatMap(edge => {
+    lines: allEdges.flatMap(edge => {
       const from = readerById.get(edge.readerId)
       const to = targetById.get(`${edge.targetId}.${edge.targetProp}`)
+      const isCross = crossEdgeKeys.has(
+        `${edge.readerId}\0${edge.targetId}\0${edge.targetProp}\0${edge.reason}`,
+      )
 
-      return from && to ? [{ edge, from, to }] : []
+      return from && to ? [{ edge, from, to, isCross }] : []
     }),
   }
 }

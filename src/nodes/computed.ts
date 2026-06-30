@@ -3,7 +3,7 @@ import type { BuildContext, ComputedNode, NodeOptions, NodeSpec } from '../types
 import { activeChecks, diagnosticsFor, diagnosticsRefs, registerDebugNode } from './utils'
 
 export function computed<T>(
-  getter: (self: any) => T,
+  getter: (self: any, data?: any) => T,
   options: NodeOptions<T> = {},
 ): NodeSpec<ComputedNode<T>> {
   return {
@@ -12,7 +12,7 @@ export function computed<T>(
       const value = vueComputed(() =>
         context.debug.runWithReader(
           { readerId: context.path, reason: 'computed' },
-          () => getter(context.self),
+          () => getter(context.self, context.data),
         ),
       )
 

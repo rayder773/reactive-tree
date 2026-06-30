@@ -52,7 +52,8 @@ select {
   margin: 10px 0;
 }
 
-fieldset.node {
+fieldset.node,
+.group-node {
   border: 1px solid #bbb;
   border-radius: 6px;
   padding: 12px;

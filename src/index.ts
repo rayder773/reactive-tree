@@ -3,10 +3,12 @@ export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'
 export { record } from './nodes/record'
-export { section } from './nodes/section'
 export { state } from './nodes/state'
 export { switchNode } from './nodes/switchNode'
 export { when } from './nodes/when'
+
+export { createDisplayTree, form, input } from './display'
+export type { FormConfig, FormGetter, FormNode, InputConfig, InputGetter, InputNode } from './display'
 
 export {
   check,
@@ -49,7 +51,5 @@ export type {
   NodeOptions,
   NodeSpec,
   RecordNode,
-  SectionNode,
   StateNode,
-  TreeNode,
 } from './types'

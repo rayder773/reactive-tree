@@ -12,9 +12,12 @@ const props = defineProps<{
 const selectedReason = ref<DependencyReason | 'all'>('all')
 const selectedNodeId = ref<string | null>(null)
 
-const reasons = computed(() =>
-  Array.from(new Set(props.tree.debug.edges.value.map(edge => edge.reason))).sort(),
-)
+const crossEdges = computed(() => props.tree.debug.crossEdges.value)
+
+const reasons = computed(() => {
+  const allEdges = [...props.tree.debug.edges.value, ...crossEdges.value]
+  return Array.from(new Set(allEdges.map(edge => edge.reason))).sort()
+})
 const nodes = computed(() => props.tree.debug.nodes.value)
 const edges = computed(() => {
   const source = props.tree.debug.edges.value
@@ -23,7 +26,12 @@ const edges = computed(() => {
     ? source
     : source.filter(edge => edge.reason === selectedReason.value)
 })
-const layout = computed(() => buildGraphLayout(edges.value))
+const filteredCrossEdges = computed(() =>
+  selectedReason.value === 'all'
+    ? crossEdges.value
+    : crossEdges.value.filter(edge => edge.reason === selectedReason.value),
+)
+const layout = computed(() => buildGraphLayout(edges.value, filteredCrossEdges.value))
 </script>
 
 <template>
@@ -59,6 +67,16 @@ const layout = computed(() => buildGraphLayout(edges.value))
             >
               <path d="M0,0 L8,4 L0,8 Z" fill="#777" />
             </marker>
+            <marker
+              id="arrow-cross"
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="4"
+              orient="auto"
+            >
+              <path d="M0,0 L8,4 L0,8 Z" fill="#d97706" />
+            </marker>
           </defs>
 
           <line
@@ -68,9 +86,10 @@ const layout = computed(() => buildGraphLayout(edges.value))
             :y1="line.from.y"
             :x2="line.to.x - 100"
             :y2="line.to.y"
-            stroke="#999"
-            stroke-width="1.5"
-            marker-end="url(#arrow)"
+            :stroke="line.isCross ? '#d97706' : '#999'"
+            :stroke-width="line.isCross ? 2 : 1.5"
+            :stroke-dasharray="line.isCross ? '5,3' : undefined"
+            :marker-end="line.isCross ? 'url(#arrow-cross)' : 'url(#arrow)'"
           />
 
           <g
@@ -104,6 +123,6 @@ const layout = computed(() => buildGraphLayout(edges.value))
       />
     </div>
 
-    <DependencyGraphTable :edges="edges" />
+    <DependencyGraphTable :edges="edges" :crossEdges="filteredCrossEdges" />
   </section>
 </template>

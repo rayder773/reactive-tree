@@ -11,7 +11,6 @@ import {
   oneOf,
   record,
   required,
-  section,
   state,
   switchNode,
   when,
@@ -81,12 +80,12 @@ describe('reactive tree core', () => {
     expect(tree.doubled.value).toBe(8)
   })
 
-  it('section aggregates value and errors', () => {
+  it('group aggregates value and errors from children', () => {
     const tree = createTree({
-      user: section({
+      user: {
         name: state('', { checks: [required()] }),
         age: state(30),
-      }),
+      },
     })
 
     expect(tree.user.value).toEqual({ name: '', age: 30 })
@@ -137,8 +136,8 @@ describe('reactive tree core', () => {
     const tree = createTree({
       mode: state<'a' | 'b'>('a'),
       branch: switchNode(self => self.mode.value, {
-        a: () => section({ value: state('A') }),
-        b: () => section({ value: state('B') }),
+        a: () => ({ value: state('A') }),
+        b: () => ({ value: state('B') }),
       }),
     })
 
@@ -153,7 +152,7 @@ describe('reactive tree core', () => {
       rows: list({
         from: self => self.rowsSource.value,
         key: row => row.id,
-        item: row => section({ id: state(row.id), selected: state(false) }),
+        item: row => ({ id: state(row.id), selected: state(false) }),
       }),
     })
 
@@ -170,7 +169,7 @@ describe('reactive tree core', () => {
       rows: list({
         from: self => self.rowsSource.value,
         key: row => row.id,
-        item: row => section({ id: state(row.id), selected: state(false) }),
+        item: row => ({ id: state(row.id), selected: state(false) }),
       }),
     })
 
@@ -187,7 +186,7 @@ describe('reactive tree core', () => {
       rows: list({
         from: self => self.rowsSource.value,
         key: row => row.id,
-        item: row => section({ id: state(row.id) }),
+        item: row => ({ id: state(row.id) }),
       }),
     })
 
@@ -231,25 +230,16 @@ describe('reactive tree core', () => {
     expect(tree.columns.byKey('runtime')?.value).toBe('Runtime')
   })
 
-  it('supports checks on section level', () => {
+  it('group bubbles child errors to parent', () => {
     const tree = createTree({
-      upload: section(
-        {
-          file: state<string | null>(null),
-        },
-        {
-          checks: [
-            check(selfValue => {
-              if (!selfValue.file) {
-                return error('fileRequired', 'File is required')
-              }
-            }),
-          ],
-        },
-      ),
+      upload: {
+        file: state<string | null>(null, {
+          checks: [required()],
+        }),
+      },
     })
 
-    expect(tree.upload.errors.value).toMatchObject([{ code: 'fileRequired' }])
+    expect(tree.upload.errors.value).toMatchObject([{ code: 'required' }])
     tree.upload.file.set('file.csv')
     expect(tree.upload.valid.value).toBe(true)
   })
@@ -268,7 +258,7 @@ describe('reactive tree core', () => {
     const wizard = createTree({
       currentStep: state<'upload' | 'mapping' | 'result'>('upload'),
 
-      upload: section({
+      upload: {
         uploadType: state<'approvedVendorList' | 'customPartData'>(
           'approvedVendorList',
           {
@@ -290,24 +280,22 @@ describe('reactive tree core', () => {
           label: 'File',
           checks: [required(), fileType(['xlsx', 'xls', 'csv'])],
         }),
-      }),
+      },
 
       filePreview: when(
         self => self.upload.file.value !== null,
-        () =>
-          section({
-            columns: computed(self => parseColumns(self.upload.file.value)),
-            rowsCount: computed(self => parseRowsCount(self.upload.file.value)),
-          }),
+        () => ({
+          columns: computed(self => parseColumns(self.upload.file.value)),
+          rowsCount: computed(self => parseRowsCount(self.upload.file.value)),
+        }),
       ),
 
       mapping: when(
         self =>
           self.currentStep.value === 'mapping' &&
           self.filePreview !== undefined,
-        () =>
-          section({
-            targets: computed(self => {
+        () => ({
+          targets: computed(self => {
               if (self.upload.uploadType.value === 'approvedVendorList') {
                 return [
                   { key: 'mpn', label: 'MPN', required: true },
@@ -336,7 +324,7 @@ describe('reactive tree core', () => {
                   ],
                 }),
             }),
-          }),
+        }),
       ),
 
       canGoNext: computed(self => {
@@ -515,7 +503,7 @@ describe('reactive tree core', () => {
       file: state<File | null>(null),
       mapping: when(
         self => self.step.value === 'mapping',
-        () => section({ ready: state(true) }),
+        () => ({ ready: state(true) }),
       ),
       canGoNext: computed(self => {
         if (self.step.value === 'upload') {

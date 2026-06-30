@@ -53,6 +53,7 @@ export interface BuildContext {
   path: string
   debug: DebugStore
   registerNode?: (node: AnyNode) => void
+  data?: any
 }
 
 export interface BaseNode<TValue = unknown> {
@@ -82,12 +83,16 @@ export interface ComputedNode<T> extends BaseNode<T> {
   readonly value: T
 }
 
-export type SectionChildren = Record<string, NodeSpec<any, any>>
+export type SectionChildren = {
+  [K: string]: NodeSpec<any, any> | SectionChildren
+}
 
 export type SpecNode<T> = T extends NodeSpec<infer TNode, infer TOptional>
   ? TOptional extends true
     ? TNode | undefined
     : TNode
+  : T extends SectionChildren
+  ? SectionNode<T>
   : never
 
 export type SectionNode<TChildren extends SectionChildren> = BaseNode<{

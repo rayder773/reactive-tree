@@ -1,14 +1,19 @@
 import { effectScope, watchEffect, type EffectScope } from 'vue'
-import type { AnyNode, BuildContext, NodeSpec } from '../types'
+import type { AnyNode, BuildContext, NodeSpec, SectionChildren } from '../types'
 import { registerDebugNode } from './utils'
+import { section } from './section'
+
+function isNodeSpec(value: unknown): value is NodeSpec<any, any> {
+  return typeof value === 'object' && value !== null && 'build' in value && typeof (value as any).build === 'function'
+}
 
 export function switchNode<
   TDiscriminant extends PropertyKey,
-  TCases extends Partial<Record<TDiscriminant, () => NodeSpec<AnyNode>>>,
+  TCases extends Partial<Record<TDiscriminant, () => NodeSpec<AnyNode> | SectionChildren>>,
 >(
   discriminant: (self: any) => TDiscriminant,
   cases: TCases,
-): NodeSpec<ReturnType<NonNullable<TCases[keyof TCases]>> extends NodeSpec<infer TNode, any> ? TNode : AnyNode, true> {
+): NodeSpec<AnyNode, true> {
   return {
     build(context: BuildContext) {
       let activeKey: PropertyKey | undefined
@@ -66,11 +71,13 @@ export function switchNode<
 
         const factory = cases[key]
 
-          if (factory) {
+        if (factory) {
           activeKey = key
           activeScope = effectScope()
+          const result = factory()
+          const spec = isNodeSpec(result) ? result : section(result as SectionChildren)
           activeNode = activeScope.run(() =>
-            factory().build({
+            spec.build({
               ...context,
               registerNode: node => {
                 activeNode = node
@@ -78,7 +85,8 @@ export function switchNode<
             }),
           ) as AnyNode
           context.debug.setNodeActive(context.path, true)
-        } else {
+        }
+        else {
           context.debug.setNodeActive(context.path, false)
         }
       }, { flush: 'sync' })

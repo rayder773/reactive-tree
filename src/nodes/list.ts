@@ -1,12 +1,17 @@
 import { computed as vueComputed, effectScope, shallowReactive, watchEffect, type EffectScope } from 'vue'
-import type { AnyNode, BuildContext, ListNode, NodeOptions, NodeSpec } from '../types'
+import type { AnyNode, BuildContext, ListNode, NodeOptions, NodeSpec, SectionChildren } from '../types'
 import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
 import { resolveMaybeWhen } from './when'
+import { section } from './section'
+
+function isNodeSpec(value: unknown): value is NodeSpec<any, any> {
+  return typeof value === 'object' && value !== null && 'build' in value && typeof (value as any).build === 'function'
+}
 
 export interface ListOptions<TItem, TKey extends PropertyKey, TItemNode extends AnyNode> extends NodeOptions<NodeValueArray<TItemNode>> {
-  from: (self: any) => readonly TItem[]
+  from: (self: any, data?: any) => readonly TItem[]
   key: (item: TItem) => TKey
-  item: (item: TItem) => NodeSpec<TItemNode>
+  item: (item: TItem) => NodeSpec<TItemNode> | SectionChildren
 }
 
 type NodeValueArray<TNode extends AnyNode> = Array<TNode['value']>
@@ -42,7 +47,7 @@ export function list<
       watchEffect(() => {
         const source = context.debug.runWithReader(
           { readerId: context.path, reason: 'list.from' },
-          () => options.from(context.self),
+          () => options.from(context.self, context.data),
         )
         const nextKeys = new Set<PropertyKey>()
 
@@ -52,8 +57,10 @@ export function list<
 
           if (!entries.has(key)) {
             const scope = effectScope()
+            const result = options.item(sourceItem)
+            const spec = isNodeSpec(result) ? result : section(result as SectionChildren)
             const itemNode = scope.run(() =>
-              options.item(sourceItem).build({
+              spec.build({
                 ...context,
                 path: childPath(context.path, String(key)),
                 registerNode: undefined,

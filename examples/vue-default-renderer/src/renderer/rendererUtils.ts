@@ -6,9 +6,10 @@ import type {
   Diagnostic,
   ListNode,
   RecordNode,
-  SectionNode,
   StateNode,
 } from '../../../../src'
+import type { SectionNode } from '../../../../src/types'
+import type { FormNode, InputNode } from '../../../../src/display'
 
 const NODE_INTERNAL_KEYS = new Set([
   'kind',
@@ -29,6 +30,14 @@ const NODE_INTERNAL_KEYS = new Set([
   'error',
   'refetch',
   '__register',
+])
+
+const FORM_INTERNAL_KEYS = new Set([
+  ...NODE_INTERNAL_KEYS,
+  'isAnyTouched',
+  'isAnyDirty',
+  'isSubmitting',
+  'disabled',
 ])
 
 export type NodeEntry = {
@@ -61,7 +70,7 @@ export function isComputedNode(node: AnyNode): node is ComputedNode<unknown> {
   return node.kind === 'computed'
 }
 
-export function isSectionNode(node: AnyNode): node is SectionNode<any> {
+export function isGroupNode(node: AnyNode): node is SectionNode<any> {
   return node.kind === 'section'
 }
 
@@ -77,9 +86,24 @@ export function isAsyncNode(node: AnyNode): node is AsyncNode<unknown> {
   return node.kind === 'async'
 }
 
+export function isInputNode(node: AnyNode): node is InputNode {
+  return node.kind === 'input'
+}
+
+export function isFormNode(node: AnyNode): node is FormNode<any> {
+  return node.kind === 'form'
+}
+
 export function childEntries(node: AnyNode): NodeEntry[] {
   return Object.keys(node)
     .filter(key => !NODE_INTERNAL_KEYS.has(key))
+    .map(key => ({ key, node: node[key] }))
+    .filter((entry): entry is NodeEntry => isNode(entry.node))
+}
+
+export function formChildEntries(node: AnyNode): NodeEntry[] {
+  return Object.keys(node)
+    .filter(key => !FORM_INTERNAL_KEYS.has(key))
     .map(key => ({ key, node: node[key] }))
     .filter((entry): entry is NodeEntry => isNode(entry.node))
 }

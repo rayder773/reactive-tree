@@ -1,10 +1,15 @@
 import { effectScope, watchEffect, type EffectScope } from 'vue'
-import type { AnyNode, BuildContext, NodeSpec } from '../types'
+import type { AnyNode, BuildContext, NodeSpec, SectionChildren } from '../types'
 import { registerDebugNode } from './utils'
+import { section } from './section'
+
+function isNodeSpec(value: unknown): value is NodeSpec<any, any> {
+  return typeof value === 'object' && value !== null && 'build' in value && typeof (value as any).build === 'function'
+}
 
 export function when<TNode extends AnyNode>(
-  condition: (self: any) => boolean,
-  factory: () => NodeSpec<TNode>,
+  condition: (self: any, data?: any) => boolean,
+  factory: () => NodeSpec<TNode> | SectionChildren,
 ): NodeSpec<TNode, true> {
   return {
     build(context: BuildContext) {
@@ -13,8 +18,10 @@ export function when<TNode extends AnyNode>(
 
       const mount = () => {
         activeScope = effectScope()
+        const result = factory()
+        const spec = isNodeSpec(result) ? result : section(result as SectionChildren)
         activeNode = activeScope.run(() =>
-          factory().build({
+          spec.build({
             ...context,
             registerNode: node => {
               activeNode = node as TNode
@@ -62,7 +69,7 @@ export function when<TNode extends AnyNode>(
       watchEffect(() => {
         const enabled = context.debug.runWithReader(
           { readerId: context.path, reason: 'when' },
-          () => condition(context.self),
+          () => condition(context.self, context.data),
         )
 
         if (enabled) {
@@ -70,9 +77,11 @@ export function when<TNode extends AnyNode>(
             mount()
           }
           context.debug.setNodeActive(context.path, true)
-        } else if (activeNode) {
+        }
+        else if (activeNode) {
           unmount()
-        } else {
+        }
+        else {
           context.debug.setNodeActive(context.path, false)
         }
       }, { flush: 'sync' })
