@@ -101,11 +101,21 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
         },
       })
 
+      const initialSourceValue = node.source?.value
+
+      const effectiveConfig: InputConfig = {
+        ...config,
+        dirty: config.dirty ?? (config.source !== undefined
+          ? (_self: InputNode) => _self.source?.value !== initialSourceValue
+          : undefined
+        ),
+      }
+
       const defaultKeys = ['showError', 'errorMessage', 'disabled', 'dirty']
       const configKeys = Object.keys(config).filter(k => !defaultKeys.includes(k) && k !== 'source')
 
       for (const key of [...defaultKeys, ...configKeys]) {
-        node[key] = buildInputChild(context, key, config[key] as InputGetter<unknown> | undefined, inputNodeRef)
+        node[key] = buildInputChild(context, key, effectiveConfig[key] as InputGetter<unknown> | undefined, inputNodeRef)
       }
 
       inputNodeRef.current = node

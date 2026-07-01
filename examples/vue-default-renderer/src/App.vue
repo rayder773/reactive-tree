@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { apps } from './registry'
 import DevPanel from './DevPanel.vue'
+import { InspectOverlay } from './ui/inspect'
 
-const selectedId = ref(apps[0].id)
-const activeTab = ref<'dev' | 'app'>('dev')
+const savedId = localStorage.getItem('selectedAppId')
+const savedTab = localStorage.getItem('activeTab')
+
+const selectedId = ref(apps.find(a => a.id === savedId) ? savedId! : apps[0].id)
+const activeTab = ref<'dev' | 'app'>(savedTab === 'app' ? 'app' : 'dev')
+
+watch(selectedId, (v) => localStorage.setItem('selectedAppId', v))
+watch(activeTab, (v) => localStorage.setItem('activeTab', v))
 
 const selectedApp = computed(() => apps.find(a => a.id === selectedId.value)!)
 </script>
@@ -49,6 +56,7 @@ const selectedApp = computed(() => apps.find(a => a.id === selectedId.value)!)
       />
     </div>
   </main>
+  <InspectOverlay />
 </template>
 
 <style scoped>

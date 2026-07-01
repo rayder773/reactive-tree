@@ -1,15 +1,21 @@
 <template>
   <div>
     <div v-if="wizard.currentStep.value === 'upload'">
-      <select v-model="wizard.uploadType.value">
-        <option value="approvedVendorList">Approved vendor list</option>
-        <option value="customPartData">Custom part data</option>
-      </select>
+      <AppSelect
+        :node="wizardDisplay.uploadForm.uploadType"
+        :options="UPLOAD_TYPE_OPTIONS"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { wizardDisplay } from './display';
-import { wizard } from './tree';
+import { wizardDisplay } from './display'
+import { wizard } from './tree'
+import AppSelect from '../../ui/AppSelect.vue'
+
+const UPLOAD_TYPE_OPTIONS = [
+  { value: 'approvedVendorList', label: 'Approved vendor list' },
+  { value: 'customPartData', label: 'Custom part data' },
+]
 </script>
