@@ -10,6 +10,10 @@
       <hr />
 
       <AppFileInput :node="wizardDisplay.uploadForm.file" />
+
+      <hr />
+
+      <AppButton :node="wizardDisplay.submitButton" @click="onSubmit" />
     </div>
   </div>
 </template>
@@ -19,4 +23,9 @@ import { wizardDisplay } from './display'
 import { wizard } from './tree'
 import AppSelect from '../../ui/AppSelect.vue'
 import AppFileInput from '../../ui/AppFileInput.vue'
+import AppButton from '../../ui/AppButton.vue'
+
+function onSubmit() {
+  console.log('submit', wizard.file.value)
+}
 </script>

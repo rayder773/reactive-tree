@@ -1,6 +1,6 @@
 import { computed as vueComputed } from 'vue'
 import { state } from '../nodes/state'
-import { childPath, diagnosticsRefs, registerDebugNode } from '../nodes/utils'
+import { childPath, diagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
 import type { AnyNode, BuildContext, NodeSpec } from '../types'
 
 export type InputGetter<T> = (self: InputNode) => T
@@ -85,7 +85,7 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
       }
 
       registerDebugNode(context, node, 'input')
-      Object.assign(node, diagnosticsRefs(() => []))
+      Object.assign(node, diagnosticsRefs(() => nodeDiagnostics(node.source)))
 
       const inputNodeRef = { current: node }
 

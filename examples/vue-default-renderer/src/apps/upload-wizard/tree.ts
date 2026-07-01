@@ -1,4 +1,4 @@
-import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, state, type StateNode, when } from "../../../../../src";
+import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, required, state, type StateNode, when } from "../../../../../src";
 import { createSimAdapter, error, loading, success } from '../../../../../src/adapters/sim'
 
 export const wizard = createTree({
@@ -24,12 +24,13 @@ export const wizard = createTree({
 
 	file: state<FileData | null>(null, {
 		label: 'File',
-		checks: [fileType(['xlsx', 'xls', 'csv', 'png', 'pdf'])],
+		checks: [required(), fileType(['xlsx', 'xls', 'csv', 'png', 'pdf'])],
 	}),
 
 	uploadedFileId: asyncNode<{ id: string }, FileData>({
 		label: 'Uploaded file ID',
 		trigger: (self: WizardSelf) => self.file.value,
+		payload: (self: WizardSelf) => self.file.value!,
 	}),
 })
 

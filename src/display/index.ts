@@ -1,5 +1,7 @@
 export { createDisplayTree } from './createDisplayTree'
 export type { DisplayTree, DisplayTreeOptions } from './createDisplayTree'
+export { button } from './button'
+export type { ButtonConfig, ButtonGetter, ButtonNode } from './button'
 export { form } from './form'
 export { input } from './input'
 export type { FormConfig, FormGetter, FormNode } from './form'

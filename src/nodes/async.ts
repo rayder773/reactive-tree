@@ -63,7 +63,7 @@ export function asyncNode<T, TInput = void>(options: AsyncNodeOptions<T, TInput>
       }
 
       if (options.trigger) {
-        const { trigger } = options
+        const { trigger, payload } = options
         watchEffect(() => {
           const triggerValue = context.debug.runWithReader(
             { readerId: context.path, reason: 'async.trigger' },
@@ -75,7 +75,7 @@ export function asyncNode<T, TInput = void>(options: AsyncNodeOptions<T, TInput>
           }
 
           if (triggerValue != null) {
-            lastInput = triggerValue as TInput
+            lastInput = payload(context.self)
             execute(lastInput, false)
           } else {
             reset()
@@ -116,7 +116,7 @@ export function asyncNode<T, TInput = void>(options: AsyncNodeOptions<T, TInput>
           if (options.trigger) {
             const triggerValue = options.trigger(context.self)
             if (triggerValue != null && !frozen) {
-              lastInput = triggerValue as TInput
+              lastInput = options.payload(context.self)
               execute(lastInput, false)
             }
           }

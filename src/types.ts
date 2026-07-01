@@ -37,9 +37,10 @@ export interface NodeOptions<T = unknown> {
   metadata?: unknown
 }
 
-export interface AsyncNodeOptions<T = unknown, TInput = void> extends NodeOptions<T> {
-  trigger?: (self: any) => TInput | null
-}
+export type AsyncNodeOptions<T = unknown, TInput = void> = NodeOptions<T> & (
+  | { trigger: (self: any) => unknown | null; payload: (self: any) => TInput }
+  | { trigger?: never; payload?: never }
+)
 
 export interface NodeSpec<TNode, TOptional extends boolean = false> {
   __node?: TNode

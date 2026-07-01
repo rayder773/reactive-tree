@@ -30,6 +30,7 @@ export const wizard = createTree({
 	uploadedFileId: asyncNode<{ id: string }, FileData>({
 		label: 'Uploaded file ID',
 		trigger: (self: WizardSelf) => self.file.value,
+		payload: (self: WizardSelf) => self.file.value!,
 	}),
 })
 

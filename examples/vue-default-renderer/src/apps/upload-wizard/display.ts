@@ -1,5 +1,15 @@
-import { createDisplayTree, createI18nPlugin, form, input, valuesFrom, when } from '../../../../../src'
+import { button, createDisplayTree, createI18nPlugin, form, input, valuesFrom, when } from '../../../../../src'
+import type { ButtonNode, FormNode, InputNode } from '../../../../../src'
 import { type ApprovedAction, type UploadType, wizard } from './tree'
+
+type WizardDisplay = {
+  uploadForm: FormNode<{
+    uploadType: InputNode
+    approvedAction?: InputNode
+    file: InputNode
+  }>
+  submitButton: ButtonNode
+}
 
 export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
 
@@ -28,6 +38,11 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
       source: () => wizard.file,
     }),
 
+  }),
+
+  submitButton: button<WizardDisplay>({
+    label: 'Upload',
+    disabled: root => root.uploadForm.invalid.value,
   }),
 
 }), {
