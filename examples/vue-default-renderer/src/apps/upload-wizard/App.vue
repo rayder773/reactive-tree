@@ -6,6 +6,10 @@
       <hr />
 
       <AppSelect :node="wizardDisplay.uploadForm.approvedAction" />
+
+      <hr />
+
+      <AppFileInput :node="wizardDisplay.uploadForm.file" />
     </div>
   </div>
 </template>
@@ -14,4 +18,5 @@
 import { wizardDisplay } from './display'
 import { wizard } from './tree'
 import AppSelect from '../../ui/AppSelect.vue'
+import AppFileInput from '../../ui/AppFileInput.vue'
 </script>

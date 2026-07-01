@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { AnyNode } from '../../../../../src'
 import { controlKind, oneOfOptions, manyOfOptions } from '../../renderer/rendererUtils'
 import { activeEntry, cancelHide, scheduleHide } from './state'
+import JsonView from '../../renderer/JsonView.vue'
 
 const pos = computed(() => {
   const rect = activeEntry.value?.badgeRect
@@ -190,7 +191,9 @@ const rows = computed((): Row[] => {
           @change="setFromNumber"
         />
 
-        <span v-else-if="kind === 'file'" class="inspect-val">{{ stringify(source?.value) }}</span>
+        <span v-else-if="kind === 'file'" class="inspect-val inspect-file-val">
+          <JsonView :value="source?.value" />
+        </span>
 
         <input
           v-else
@@ -264,6 +267,11 @@ const rows = computed((): Row[] => {
 .inspect-val {
   color: #cdd6f4;
   word-break: break-all;
+}
+
+.inspect-file-val {
+  word-break: normal;
+  overflow: hidden;
 }
 .inspect-val.is-true  { color: #a6e3a1; }
 .inspect-val.is-false { color: #f38ba8; }
