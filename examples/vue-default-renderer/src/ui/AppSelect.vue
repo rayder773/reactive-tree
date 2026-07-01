@@ -3,7 +3,7 @@ import type { InputNode } from '../../../../src'
 import { useInputBind } from './useInputBind'
 
 const props = defineProps<{
-  node: InputNode
+  node?: InputNode | null
   options: { value: string; label: string }[]
 }>()
 
@@ -11,7 +11,7 @@ const { model, onFocus, onBlur, showError, errorMessage, disabled: isDisabled } 
 </script>
 
 <template>
-  <div v-inspect="node" class="app-field" :class="{ 'has-error': showError, 'is-disabled': isDisabled }">
+  <div v-if="node?.kind === 'input'" v-inspect="node" class="app-field" :class="{ 'has-error': showError, 'is-disabled': isDisabled }">
     <select v-model="model" :disabled="isDisabled" @focus="onFocus" @blur="onBlur">
       <option v-for="opt in options" :key="opt.value" :value="opt.value">
         {{ opt.label }}

@@ -1,4 +1,4 @@
-import { effectScope, watchEffect, type EffectScope } from 'vue'
+import { effectScope, shallowRef, watchEffect, type EffectScope } from 'vue'
 import type { AnyNode, BuildContext, NodeSpec, SectionChildren } from '../types'
 import { registerDebugNode } from './utils'
 import { section } from './section'
@@ -13,18 +13,18 @@ export function when<TNode extends AnyNode>(
 ): NodeSpec<TNode, true> {
   return {
     build(context: BuildContext) {
-      let activeNode: TNode | undefined
+      const activeNodeRef = shallowRef<TNode | undefined>(undefined)
       let activeScope: EffectScope | undefined
 
       const mount = () => {
         activeScope = effectScope()
         const result = factory()
         const spec = isNodeSpec(result) ? result : section(result as SectionChildren)
-        activeNode = activeScope.run(() =>
+        activeNodeRef.value = activeScope.run(() =>
           spec.build({
             ...context,
             registerNode: node => {
-              activeNode = node as TNode
+              activeNodeRef.value = node as TNode
             },
           }),
         ) as TNode
@@ -33,7 +33,7 @@ export function when<TNode extends AnyNode>(
       const unmount = () => {
         activeScope?.stop()
         activeScope = undefined
-        activeNode = undefined
+        activeNodeRef.value = undefined
         context.debug.setNodeActive(context.path, false)
       }
 
@@ -42,23 +42,23 @@ export function when<TNode extends AnyNode>(
         {
           get(_target, property) {
             if (property === '__activeNode') {
-              return activeNode
+              return activeNodeRef.value
             }
 
-            return activeNode?.[property as keyof TNode]
+            return activeNodeRef.value?.[property as keyof TNode]
           },
           has(_target, property) {
-            return activeNode ? property in activeNode : false
+            return activeNodeRef.value ? property in activeNodeRef.value : false
           },
           ownKeys() {
-            return activeNode ? Reflect.ownKeys(activeNode) : []
+            return activeNodeRef.value ? Reflect.ownKeys(activeNodeRef.value) : []
           },
           getOwnPropertyDescriptor(_target, property) {
-            if (!activeNode) {
+            if (!activeNodeRef.value) {
               return undefined
             }
 
-            return Object.getOwnPropertyDescriptor(activeNode, property)
+            return Object.getOwnPropertyDescriptor(activeNodeRef.value, property)
           },
         },
       ) as TNode
@@ -73,12 +73,12 @@ export function when<TNode extends AnyNode>(
         )
 
         if (enabled) {
-          if (!activeNode) {
+          if (!activeNodeRef.value) {
             mount()
           }
           context.debug.setNodeActive(context.path, true)
         }
-        else if (activeNode) {
+        else if (activeNodeRef.value) {
           unmount()
         }
         else {
