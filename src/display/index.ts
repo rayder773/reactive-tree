@@ -1,5 +1,8 @@
 export { createDisplayTree } from './createDisplayTree'
+export type { DisplayTree, DisplayTreeOptions } from './createDisplayTree'
 export { form } from './form'
 export { input } from './input'
 export type { FormConfig, FormGetter, FormNode } from './form'
 export type { InputConfig, InputGetter, InputNode } from './input'
+export { createI18nPlugin } from './plugins/i18n'
+export type { I18nPlugin } from './plugins/i18n'

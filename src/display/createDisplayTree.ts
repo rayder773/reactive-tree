@@ -3,10 +3,24 @@ import { createDebugStore } from '../debug'
 import { section } from '../nodes/section'
 import type { SectionChildren, TreeNode } from '../types'
 
-export function createDisplayTree<TData, TChildren extends SectionChildren>(
+export type DisplayTreeOptions<TPlugins extends Record<string, object>> = {
+  plugins?: TPlugins
+}
+
+export type DisplayTree<TChildren extends SectionChildren, TPlugins extends Record<string, object>> =
+  TreeNode<TChildren> & { plugins: TPlugins }
+
+export function createDisplayTree<
+  TData,
+  TChildren extends SectionChildren,
+  TPlugins extends Record<string, object> = Record<never, never>,
+>(
   dataTree: TData,
-  factory: (data: TData) => TChildren,
-): TreeNode<TChildren> {
+  factory: (plugins: TPlugins) => TChildren,
+  options?: DisplayTreeOptions<TPlugins>,
+): DisplayTree<TChildren, TPlugins> {
+  const plugins = (options?.plugins ?? {}) as TPlugins
+
   const displayDebug = createDebugStore()
   const root = {}
 
@@ -22,7 +36,7 @@ export function createDisplayTree<TData, TChildren extends SectionChildren>(
   // will appear in displayDebug.crossEdges automatically.
   const dataProxy = displayDebug.createSelfProxy(dataTree as any)
 
-  const children = factory(dataProxy as TData)
+  const children = factory(plugins)
 
   const context = {
     root,
@@ -36,7 +50,7 @@ export function createDisplayTree<TData, TChildren extends SectionChildren>(
   }
 
   const scope = effectScope(true)
-  const tree = scope.run(() => section(children).build(context)) as TreeNode<TChildren>
+  const tree = scope.run(() => section(children).build(context)) as DisplayTree<TChildren, TPlugins>
 
   Object.defineProperty(tree, 'dispose', {
     enumerable: false,
@@ -48,6 +62,12 @@ export function createDisplayTree<TData, TChildren extends SectionChildren>(
     enumerable: false,
     configurable: false,
     value: displayDebug,
+  })
+
+  Object.defineProperty(tree, 'plugins', {
+    enumerable: false,
+    configurable: false,
+    value: plugins,
   })
 
   return tree

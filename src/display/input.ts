@@ -3,7 +3,7 @@ import { state } from '../nodes/state'
 import { childPath, diagnosticsRefs, registerDebugNode } from '../nodes/utils'
 import type { AnyNode, BuildContext, NodeSpec } from '../types'
 
-export type InputGetter<T> = (self: InputNode, data: any) => T
+export type InputGetter<T> = (self: InputNode) => T
 
 export type SourceSpec = { value: unknown; set(v: unknown): void } | InputGetter<{ value: unknown; set(v: unknown): void } | undefined>
 
@@ -40,7 +40,7 @@ function buildInputChild(
     const valueRef = vueComputed(() =>
       context.debug.runWithReader(
         { readerId: path, reason: 'computed' },
-        () => getter(context.debug.createSelfProxy(inputNodeRef.current), context.data),
+        () => getter(context.debug.createSelfProxy(inputNodeRef.current)),
       ),
     )
     const node: any = {
@@ -95,7 +95,7 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
         get() {
           if (!config.source) return undefined
           if (typeof config.source === 'function') {
-            return (config.source as InputGetter<any>)(inputNodeRef.current, context.data)
+            return (config.source as InputGetter<any>)(inputNodeRef.current)
           }
           return config.source
         },

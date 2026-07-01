@@ -2,10 +2,10 @@ import { computed as vueComputed } from 'vue'
 import { state } from '../nodes/state'
 import { childPath, diagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
 import { resolveMaybeWhen } from '../nodes/when'
-import type { AnyNode, BuildContext, NodeSpec, SectionChildren } from '../types'
+import type { BaseNode, BuildContext, NodeSpec, NodeValue, SectionChildren, SpecNode } from '../types'
 import type { InputNode } from './input'
 
-export type FormGetter<T> = (self: FormNode<any>, data: any) => T
+export type FormGetter<T> = (self: FormNode<any>) => T
 
 export interface FormConfig {
   disabled?: FormGetter<boolean>
@@ -13,13 +13,17 @@ export interface FormConfig {
   [key: string]: FormGetter<unknown> | undefined
 }
 
-export interface FormNode<TFields> extends AnyNode {
+export type FormNode<TChildren extends SectionChildren> = BaseNode<
+  { [K in keyof TChildren as undefined extends SpecNode<TChildren[K]> ? never : K]: NodeValue<SpecNode<TChildren[K]>> }
+  & { [K in keyof TChildren as undefined extends SpecNode<TChildren[K]> ? K : never]?: NodeValue<Exclude<SpecNode<TChildren[K]>, undefined>> }
+> & {
   readonly kind: 'form'
   readonly isAnyTouched: { value: boolean }
   readonly isAnyDirty: { value: boolean }
   readonly isSubmitting: { value: boolean }
   readonly disabled: { value: boolean }
-  readonly [K: string]: any
+} & {
+  readonly [K in keyof TChildren]: SpecNode<TChildren[K]>
 }
 
 function collectInputNodes(nodes: Record<string, any>): Array<InputNode | FormNode<any>> {
@@ -115,7 +119,7 @@ export function form<TChildren extends SectionChildren>(
         const ref = vueComputed(() =>
           context.debug.runWithReader(
             { readerId: childPath(context.path, 'isSubmitting'), reason: 'computed' },
-            () => getter(context.debug.createSelfProxy(formRef.current), context.data),
+            () => getter(context.debug.createSelfProxy(formRef.current)),
           ),
         )
         const isSubmittingNode: any = { kind: 'computed', get value() { return ref.value } }
@@ -141,7 +145,7 @@ export function form<TChildren extends SectionChildren>(
         const ref = vueComputed(() =>
           context.debug.runWithReader(
             { readerId: childPath(context.path, 'disabled'), reason: 'computed' },
-            () => getter(context.debug.createSelfProxy(formRef.current), context.data),
+            () => getter(context.debug.createSelfProxy(formRef.current)),
           ),
         )
         const disabledNode: any = { kind: 'computed', get value() { return ref.value } }

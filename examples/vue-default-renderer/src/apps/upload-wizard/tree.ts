@@ -41,9 +41,9 @@ type WizardSelf = {
 	uploadedFileId: AsyncNode<{ id: string }, FileData>
 }
 
-type ApprovedAction = 'createNew' | 'replaceExisting'
-type UploadType = 'approvedVendorList' | 'customPartData'
-type UploadStep = 'upload' | 'mapping' | 'result'
+export type ApprovedAction = 'createNew' | 'replaceExisting'
+export type UploadType = 'approvedVendorList' | 'customPartData'
+export type UploadStep = 'upload' | 'mapping' | 'result'
 
 const env = (import.meta as { env?: Record<string, string> }).env
 

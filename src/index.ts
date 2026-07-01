@@ -7,8 +7,8 @@ export { state } from './nodes/state'
 export { switchNode } from './nodes/switchNode'
 export { when } from './nodes/when'
 
-export { createDisplayTree, form, input } from './display'
-export type { FormConfig, FormGetter, FormNode, InputConfig, InputGetter, InputNode } from './display'
+export { createDisplayTree, createI18nPlugin, form, input } from './display'
+export type { DisplayTree, DisplayTreeOptions, FormConfig, FormGetter, FormNode, I18nPlugin, InputConfig, InputGetter, InputNode } from './display'
 
 export {
   check,
@@ -21,6 +21,7 @@ export {
   minLength,
   oneOf,
   required,
+  valuesFrom,
   warning,
 } from './checks'
 

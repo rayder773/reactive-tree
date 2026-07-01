@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { InputNode } from '../../../../src'
 import { useInputBind } from './useInputBind'
 
 const props = defineProps<{
   node?: InputNode | null
-  options: { value: string; label: string }[]
 }>()
 
 const { model, onFocus, onBlur, showError, errorMessage, disabled: isDisabled } = useInputBind(props.node)
+
+const options = computed(() => (props.node as any)?.options?.value ?? [])
 </script>
 
 <template>
