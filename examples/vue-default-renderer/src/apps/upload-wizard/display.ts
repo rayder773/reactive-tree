@@ -1,8 +1,10 @@
-import { computed, createDisplayTree, form, input, when } from '../../../src'
-import { wizard } from './uploadWizard.real'
+import { computed, createDisplayTree, form, input, when } from '../../../../../src'
+import { wizard } from './tree'
 
 export const wizardDisplay = createDisplayTree(wizard, (data) => ({
+
   uploadForm: form({
+
     uploadType: input({
       source: (_self, data) => data.uploadType,
       showError: (self, data) => self.touched.value && data.uploadType.invalid.value,
@@ -24,6 +26,7 @@ export const wizardDisplay = createDisplayTree(wizard, (data) => ({
       errorMessage: (self, data) => data.file.errors.value[0]?.message,
       dirty: (_self, data) => data.file.value !== null,
     }),
+
   }),
 
   isFormValid: computed((self, data) =>
@@ -32,4 +35,5 @@ export const wizardDisplay = createDisplayTree(wizard, (data) => ({
     data.file.valid.value &&
     data.uploadedFileId.value !== null,
   ),
+
 }))

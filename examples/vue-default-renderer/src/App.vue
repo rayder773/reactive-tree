@@ -1,42 +1,97 @@
 <script setup lang="ts">
-import DependencyGraph from './renderer/debug/DependencyGraph.vue'
-import JsonView from './renderer/JsonView.vue'
-import TreeRenderer from './renderer/TreeRenderer.vue'
-import { wizard } from './uploadWizard.real'
-import { wizardDisplay } from './uploadWizard.real.display'
+import { computed, ref } from 'vue'
+import { apps } from './registry'
+import DevPanel from './DevPanel.vue'
+
+const selectedId = ref(apps[0].id)
+const activeTab = ref<'dev' | 'app'>('dev')
+
+const selectedApp = computed(() => apps.find(a => a.id === selectedId.value)!)
 </script>
 
 <template>
   <main class="app-shell">
-    <h2>Data tree</h2>
-    <TreeRenderer :tree="wizard">
-      <template #[wizard.uploadType.id]="{ children }">
-        <h2>Выберите тип загрузки</h2>
-        <component :is="children" />
-      </template>
-    </TreeRenderer>
+    <nav class="app-switcher">
+      <button
+        v-for="app in apps"
+        :key="app.id"
+        :class="['app-btn', { active: selectedId === app.id }]"
+        @click="selectedId = app.id; activeTab = 'dev'"
+      >
+        {{ app.label }}
+      </button>
+    </nav>
 
-    <hr />
+    <nav class="tab-switcher">
+      <button
+        :class="['tab-btn', { active: activeTab === 'dev' }]"
+        @click="activeTab = 'dev'"
+      >
+        Dev
+      </button>
+      <button
+        :class="['tab-btn', { active: activeTab === 'app' }]"
+        @click="activeTab = 'app'"
+      >
+        App
+      </button>
+    </nav>
 
-    <h2>Display tree</h2>
-    <TreeRenderer :tree="(wizardDisplay as any)" />
-
-    <hr />
-
-    <h2>Data tree — dependency graph</h2>
-    <DependencyGraph :tree="(wizard as any)" />
-
-    <hr />
-
-    <h2>Display tree — dependency graph (orange = cross-tree reads)</h2>
-    <DependencyGraph :tree="(wizardDisplay as any)" />
-
-    <hr />
-
-    <h2>Data tree value</h2>
-    <pre class="debug-block"><JsonView :value="wizard.value" :indent="1" /></pre>
-
-    <h2>Data tree diagnostics</h2>
-    <pre class="debug-block">{{ wizard.diagnostics.value }}</pre>
+    <div class="tab-content">
+      <DevPanel
+        v-if="activeTab === 'dev'"
+        :tree="selectedApp.tree"
+        :display="selectedApp.display"
+      />
+      <component
+        :is="selectedApp.component"
+        v-else
+      />
+    </div>
   </main>
 </template>
+
+<style scoped>
+.app-switcher,
+.tab-switcher {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #ddd;
+  flex-wrap: wrap;
+}
+
+.app-switcher {
+  background: #f8f8f8;
+}
+
+.tab-switcher {
+  background: #fff;
+}
+
+.app-btn,
+.tab-btn {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.app-btn:hover,
+.tab-btn:hover {
+  background: #e8e8e8;
+}
+
+.app-btn.active,
+.tab-btn.active {
+  background: #4a90d9;
+  color: #fff;
+  border-color: #4a90d9;
+}
+
+.tab-content {
+  padding: 1rem;
+}
+</style>

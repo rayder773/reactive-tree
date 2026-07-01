@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "npm --prefix examples/vue-default-renderer run dev"
   },
   "keywords": [],
   "author": "",
