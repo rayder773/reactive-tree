@@ -24,12 +24,19 @@ export type DependencyReason =
   | 'check'
   | 'async.trigger'
 
+export interface SourceLocation {
+  file: string
+  line: number
+  col: number
+}
+
 export interface DebugNodeInfo {
   id: string
   path: string
   kind: string
   label?: string
   active: boolean
+  sourceLocation?: SourceLocation
 }
 
 export interface DependencyEdge {
@@ -114,6 +121,7 @@ export function createDebugStore(): DebugStore {
         kind: info.kind,
         label: info.label,
         active: info.active ?? true,
+        sourceLocation: info.sourceLocation,
       }
 
       nodesById.set(id, nextInfo)

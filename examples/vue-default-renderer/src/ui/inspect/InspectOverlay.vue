@@ -9,6 +9,7 @@ interface FlatDep {
   label: string
   depth: number
   isCross: boolean
+  sourceLocation?: { file: string; line: number }
 }
 
 function buildFlatDeps(
@@ -32,8 +33,10 @@ function buildFlatDeps(
     const nodeName = targetId.split('.').pop() ?? targetId
     // hide `.diagnostics` — it's an internal delegation detail, node name alone is enough
     const label = targetProp === 'diagnostics' ? nodeName : `${nodeName}.${targetProp}`
+    const nodeInfo = nodeMap.get(targetId)
+    const sourceLocation = nodeInfo?.sourceLocation
 
-    result.push({ label, depth, isCross })
+    result.push({ label, depth, isCross, sourceLocation })
 
     // stop recursion at cross-tree boundaries and at .diagnostics edges
     // (diagnostics delegation is plumbing, not meaningful to the user)
@@ -91,6 +94,7 @@ interface DomBinding {
   editable: boolean
   deps?: FlatDep[]
   triggers?: string[]
+  sourceLocation?: { file: string; line: number }
 }
 
 const domBindings = computed((): DomBinding[] => {
@@ -123,6 +127,7 @@ function computeDomBindings(v: any): DomBinding[] {
       tag: nodeTag(src),
       editable: typeof src?.set === 'function',
       triggers: triggers.length ? triggers : undefined,
+      sourceLocation: (src as any)?.__debug?.sourceLocation,
     }]
   }
 
@@ -138,6 +143,7 @@ function computeDomBindings(v: any): DomBinding[] {
         sourceNode: null,
         tag: v.labelReactive ? 'i18n' as EntityTag : null,
         editable: false,
+        sourceLocation: v.labelReactive ? (v as any).i18nSourceLocation : undefined,
       },
       {
         prop: 'disabled',
@@ -146,6 +152,7 @@ function computeDomBindings(v: any): DomBinding[] {
         tag: nodeTag(v.disabled) ?? 'display',
         editable: false,
         deps: disabledDeps,
+        sourceLocation: (v.disabled as any)?.__debug?.sourceLocation,
       },
     ]
   }
@@ -289,6 +296,14 @@ const validationRows = computed((): ValidationRow[] => {
   return rows
 })
 
+// ── open in editor ────────────────────────────────────────────────────────────
+
+function openInEditor(file: string, line: number, col = 1) {
+  window.open(`vscode://file${file}:${line}:${col}`)
+}
+
+const componentSourceLocation = computed(() => activeEntry.value?.sourceLocation ?? null)
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function stringify(v: unknown): string {
@@ -321,7 +336,16 @@ function nodeLabel(v: any): string {
       @mouseenter="cancelHide"
       @mouseleave="scheduleHide"
     >
-      <div class="inspect-title">{{ nodeLabel(d) }}</div>
+      <div class="inspect-title">
+        {{ nodeLabel(d) }}
+        <a
+          v-if="componentSourceLocation"
+          class="source-link"
+          href="#"
+          @click.prevent="openInEditor(componentSourceLocation.file, componentSourceLocation.line)"
+          title="Open in editor"
+        >↗</a>
+      </div>
 
       <!-- dom bindings -->
       <div class="inspect-section">
@@ -377,6 +401,13 @@ function nodeLabel(v: any): string {
             <span v-if="binding.tag" :class="['entity-tag', `tag-${binding.tag}`]">
               {{ TAG_LABEL[binding.tag] }}
             </span>
+            <a
+              v-if="binding.sourceLocation"
+              class="source-link"
+              href="#"
+              @click.prevent="openInEditor(binding.sourceLocation.file, binding.sourceLocation.line)"
+              title="Open in editor"
+            >↗</a>
           </div>
           <div v-if="binding.deps?.length" class="inspect-deps">
             <div
@@ -384,7 +415,16 @@ function nodeLabel(v: any): string {
               :key="i"
               :style="{ paddingLeft: (dep.depth * 10) + 'px' }"
               :class="dep.isCross ? 'dep-cross' : ''"
-            >← {{ dep.label }}</div>
+            >
+              ← {{ dep.label }}
+              <a
+                v-if="dep.sourceLocation"
+                class="source-link"
+                href="#"
+                @click.prevent="openInEditor(dep.sourceLocation.file, dep.sourceLocation.line)"
+                title="Open in editor"
+              >↗</a>
+            </div>
           </div>
           <div v-if="binding.triggers?.length" class="inspect-triggers">
             → {{ binding.triggers.join(', ') }}
@@ -464,6 +504,20 @@ function nodeLabel(v: any): string {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.source-link {
+  color: #585b70;
+  text-decoration: none;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.source-link:hover {
+  color: #89b4fa;
 }
 
 .inspect-section {

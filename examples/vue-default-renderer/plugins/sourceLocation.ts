@@ -1,0 +1,207 @@
+import { parse } from '@babel/parser'
+import MagicString from 'magic-string'
+import type { Plugin } from 'vite'
+
+const FACTORY_OPTIONS_ARG: Record<string, number> = {
+  state: 1,
+  asyncNode: 0,
+  input: 0,
+  button: 0,
+  form: 1,
+}
+
+const TRACKED_FACTORIES = new Set(Object.keys(FACTORY_OPTIONS_ARG))
+
+function isLibraryImport(importPath: string): boolean {
+  return (
+    importPath === 'reactive-tree' ||
+    importPath.endsWith('/src') ||
+    importPath.endsWith('/src/index')
+  )
+}
+
+// Generic AST visitor — visits every node depth-first.
+function walkAst(node: any, visitor: (node: any) => void): void {
+  if (!node || typeof node !== 'object') return
+  visitor(node)
+  for (const key of Object.keys(node)) {
+    if (key === 'loc' || key === 'start' || key === 'end' || key === 'extra' || key === 'type') continue
+    const child = node[key]
+    if (Array.isArray(child)) {
+      for (const item of child) {
+        if (item && typeof item === 'object' && 'type' in item) walkAst(item, visitor)
+      }
+    } else if (child && typeof child === 'object' && 'type' in child) {
+      walkAst(child, visitor)
+    }
+  }
+}
+
+export function sourceLocationPlugin(): Plugin {
+  return {
+    name: 'source-location',
+    enforce: 'pre',
+
+    transform(code: string, id: string) {
+      if (id.includes('node_modules')) return null
+      if (id.endsWith('.vue')) return transformVue(code, id)
+      if (id.endsWith('.ts') || id.endsWith('.tsx')) return transformTs(code, id)
+      return null
+    },
+  }
+}
+
+function transformVue(code: string, _id: string): { code: string; map: any } | null {
+  const ms = new MagicString(code)
+
+  // Pass 1: inject :data-source-line on elements with v-inspect
+  const vInspectRegex = /(<[a-zA-Z][^\n>]*?\bv-inspect\b[^\n>]*?>)/g
+  let match: RegExpExecArray | null
+  while ((match = vInspectRegex.exec(code)) !== null) {
+    const line = code.slice(0, match.index).split('\n').length
+    ms.appendLeft(match.index + match[0].length - 1, ` :data-source-line="${line}"`)
+  }
+
+  // Pass 2: inject :__inspectSourceLine on PascalCase components that have :node prop.
+  // [^>\/] + \/(?!>) allows '/' in URLs but stops before '/>' so the closing group captures it.
+  const componentTagRegex = /<([A-Z][a-zA-Z0-9]*)((?:[^>\/]|\/(?!>))*)(\/>|>)/g
+  while ((match = componentTagRegex.exec(code)) !== null) {
+    if (!match[2].includes(':node=')) continue
+    const line = code.slice(0, match.index).split('\n').length
+    const insertPos = match.index + match[0].length - match[3].length
+    ms.appendLeft(insertPos, ` :__inspectSourceLine="${line}"`)
+  }
+
+  if (!ms.hasChanged()) return null
+  return { code: ms.toString(), map: ms.generateMap({ hires: true }) }
+}
+
+function transformTs(code: string, id: string): { code: string; map: any } | null {
+  let ast: ReturnType<typeof parse>
+  try {
+    ast = parse(code, { sourceType: 'module', plugins: ['typescript'], attachComment: false })
+  } catch {
+    return null
+  }
+
+  const localToFactory = new Map<string, string>()
+  let i18nPluginLocalName: string | null = null
+
+  for (const node of ast.program.body) {
+    if (node.type !== 'ImportDeclaration') continue
+    if (!isLibraryImport(node.source.value)) continue
+    for (const spec of node.specifiers) {
+      if (spec.type !== 'ImportSpecifier') continue
+      const imported = spec.imported.type === 'Identifier' ? spec.imported.name : spec.imported.value
+      if (TRACKED_FACTORIES.has(imported)) localToFactory.set(spec.local.name, imported)
+      if (imported === 'createI18nPlugin') i18nPluginLocalName = spec.local.name
+    }
+  }
+
+  if (localToFactory.size === 0 && !i18nPluginLocalName) return null
+
+  const ms = new MagicString(code)
+  const absFile = id
+
+  // ── Pass 1: inject __source into factory option objects ─────────────────────
+
+  if (localToFactory.size > 0) {
+    walkAst(ast.program, (node) => {
+      if (node.type !== 'CallExpression') return
+      if (node.callee.type !== 'Identifier') return
+      const factoryName = localToFactory.get(node.callee.name)
+      if (!factoryName) return
+
+      const argIndex = FACTORY_OPTIONS_ARG[factoryName]
+      const args: any[] = node.arguments
+      const line: number = node.loc!.start.line
+      const col: number = node.loc!.start.column + 1
+      const sourceProp = `__source: { file: ${JSON.stringify(absFile)}, line: ${line}, col: ${col} }`
+
+      if (argIndex < args.length) {
+        const arg = args[argIndex]
+        if (arg.type !== 'ObjectExpression') return
+        const insertPos: number = arg.end! - 1
+        const textBeforeClose = code.slice(arg.start!, insertPos).trimEnd()
+        const sep = arg.properties.length === 0 ? '' : textBeforeClose.endsWith(',') ? ' ' : ', '
+        ms.appendLeft(insertPos, `${sep}${sourceProp}`)
+      } else if (argIndex === args.length) {
+        ms.appendLeft(node.end! - 1, `${args.length > 0 ? ', ' : ''}{ ${sourceProp} }`)
+      }
+    })
+  }
+
+  // ── Pass 2: i18n label source injection ─────────────────────────────────────
+  // Strategy:
+  //   a) Find createI18nPlugin({ messages: { FIRST_LOCALE: { KEY: … } } }) and record
+  //      which line each top-level key lives on in the source file.
+  //   b) Find `label: () => ….t.value.KEY` arrow functions (expression body, non-computed
+  //      final member access) and wrap them with Object.assign so the button factory
+  //      can read __i18nSource at build time.
+
+  if (i18nPluginLocalName) {
+    let i18nKeyLines: Record<string, number> | null = null
+
+    walkAst(ast.program, (node) => {
+      if (i18nKeyLines !== null) return // already found
+      if (node.type !== 'CallExpression') return
+      if (node.callee.type !== 'Identifier') return
+      if (node.callee.name !== i18nPluginLocalName) return
+
+      const arg = node.arguments[0]
+      if (!arg || arg.type !== 'ObjectExpression') return
+
+      const messagesProp = arg.properties.find(
+        (p: any) => p.type === 'ObjectProperty' && (p.key.name === 'messages' || p.key.value === 'messages'),
+      )
+      if (!messagesProp || messagesProp.value?.type !== 'ObjectExpression') return
+
+      const firstLocale = messagesProp.value.properties[0]
+      if (!firstLocale || firstLocale.value?.type !== 'ObjectExpression') return
+
+      const keys: Record<string, number> = {}
+      for (const prop of firstLocale.value.properties) {
+        if (prop.type !== 'ObjectProperty') continue
+        const k = prop.key.type === 'Identifier' ? prop.key.name : prop.key.value
+        if (k && prop.loc) keys[k] = prop.loc.start.line
+      }
+      i18nKeyLines = keys
+    })
+
+    if (i18nKeyLines) {
+      const keyLines = i18nKeyLines as Record<string, number>
+
+      walkAst(ast.program, (node) => {
+        // Find: ObjectProperty with key "label" whose value is () => *.t.value.KEY
+        if (node.type !== 'ObjectProperty') return
+        const propKey = node.key.type === 'Identifier' ? node.key.name : node.key.value
+        if (propKey !== 'label') return
+
+        const fn = node.value
+        if (fn.type !== 'ArrowFunctionExpression') return
+
+        // Must be expression body (not block), non-computed final member: .t.value.KEY
+        const body = fn.body
+        if (body.type !== 'MemberExpression') return
+        if (body.computed) return
+        if (body.object?.type !== 'MemberExpression') return
+        if (body.object.property?.type !== 'Identifier') return
+        if (body.object.property.name !== 'value') return
+        if (body.property?.type !== 'Identifier') return
+
+        const i18nKey: string = body.property.name
+        const sourceLine = keyLines[i18nKey]
+        if (!sourceLine) return
+
+        // Wrap: Object.assign(() => …, { __i18nSource: { file, line } })
+        ms.appendLeft(fn.start!, 'Object.assign(')
+        ms.appendLeft(fn.end!, `, { __i18nSource: { file: ${JSON.stringify(absFile)}, line: ${sourceLine} } })`)
+      })
+    }
+  }
+
+  if (!ms.hasChanged()) return null
+  return { code: ms.toString(), map: ms.generateMap({ hires: true }) }
+}
+
+export default sourceLocationPlugin

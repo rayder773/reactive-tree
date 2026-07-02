@@ -1,6 +1,7 @@
 import { computed as vueComputed } from 'vue'
 import type { AnyNode, BuildContext, Check, Diagnostic, NodeOptions } from '../types'
 import { normalizeCheckResult } from '../checks/check'
+import type { SourceLocation } from '../debug'
 
 const EMPTY_ARRAY: readonly Diagnostic[] = Object.freeze([])
 
@@ -88,6 +89,7 @@ export function registerDebugNode(
   node: AnyNode,
   kind: string,
   active = true,
+  sourceLocation?: SourceLocation,
 ) {
   const id = context.path || 'root'
 
@@ -97,5 +99,6 @@ export function registerDebugNode(
     kind,
     label: node.label,
     active,
+    sourceLocation,
   })
 }

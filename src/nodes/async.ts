@@ -123,7 +123,7 @@ export function asyncNode<T, TInput = void>(options: AsyncNodeOptions<T, TInput>
         },
       } as unknown as AsyncNode<T, TInput>
 
-      registerDebugNode(context, node, 'async')
+      registerDebugNode(context, node, 'async', true, (options as any).__source)
 
       Object.assign(
         node,

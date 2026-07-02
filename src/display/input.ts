@@ -86,7 +86,7 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
         domProp: 'value' as const,
       }
 
-      registerDebugNode(context, node, 'input')
+      registerDebugNode(context, node, 'input', true, (config as any).__source)
       const diagnosticsReaderId = childPath(context.path, 'diagnostics')
       Object.assign(node, diagnosticsRefs(() => {
         const src = node.source

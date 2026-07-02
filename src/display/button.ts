@@ -66,6 +66,8 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
         )
         Object.defineProperty(node, 'label', { get() { return labelRef.value }, enumerable: true })
         node.labelReactive = true
+        const i18nSource = (config.label as any).__i18nSource
+        if (i18nSource) node.i18nSourceLocation = i18nSource
       } else {
         node.label = config.label
         node.labelReactive = false
@@ -73,7 +75,7 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
 
       Object.defineProperty(node, '__displayDebug', { value: context.debug, enumerable: false })
 
-      registerDebugNode(context, node, 'button')
+      registerDebugNode(context, node, 'button', true, (config as any).__source)
       Object.assign(node, emptyDiagnosticsRefs)
 
       node.disabled = buildComputedChild(context, 'disabled', config.disabled as ButtonGetter<boolean>, false)

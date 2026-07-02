@@ -50,7 +50,7 @@ export function form<TChildren extends SectionChildren>(
 
       const childNodes: Record<string, any> = {}
 
-      registerDebugNode(context, node, 'form')
+      registerDebugNode(context, node, 'form', true, (config as any).__source)
       context.registerNode?.(node)
 
       for (const key of Object.keys(children)) {

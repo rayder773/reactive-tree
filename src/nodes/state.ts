@@ -44,7 +44,7 @@ export function state<T>(
         },
       } as unknown as StateNode<T>
 
-      registerDebugNode(context, node, 'state')
+      registerDebugNode(context, node, 'state', true, (options as any).__source)
 
       Object.assign(
         node,
