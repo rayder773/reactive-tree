@@ -1,5 +1,5 @@
 import { computed as vueComputed } from 'vue'
-import { childPath, diagnosticsRefs, registerDebugNode } from '../nodes/utils'
+import { childPath, emptyDiagnosticsRefs, registerDebugNode } from '../nodes/utils'
 import type { ActionNode, AnyNode, BuildContext, NodeSpec } from '../types'
 
 export type ButtonGetter<T, TRoot = any> = (root: TRoot) => T
@@ -37,12 +37,12 @@ function buildComputedChild(
     )
     const node: any = { kind: 'computed', get value() { return ref.value } }
     context.debug.registerNode(node, { id: path, path, kind: 'computed', active: true })
-    Object.assign(node, diagnosticsRefs(() => []))
+    Object.assign(node, emptyDiagnosticsRefs)
     return node
   }
 
   const node: any = { kind: 'computed', get value() { return fallback } }
-  Object.assign(node, diagnosticsRefs(() => []))
+  Object.assign(node, emptyDiagnosticsRefs)
   return node
 }
 
@@ -74,7 +74,7 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
       Object.defineProperty(node, '__displayDebug', { value: context.debug, enumerable: false })
 
       registerDebugNode(context, node, 'button')
-      Object.assign(node, diagnosticsRefs(() => []))
+      Object.assign(node, emptyDiagnosticsRefs)
 
       node.disabled = buildComputedChild(context, 'disabled', config.disabled as ButtonGetter<boolean>, false)
       node.display = buildComputedChild(context, 'display', config.display as ButtonGetter<boolean>, true)

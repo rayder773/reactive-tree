@@ -5,16 +5,44 @@ import { controlKind, oneOfOptions, manyOfOptions } from '../../renderer/rendere
 import { activeEntry, cancelHide, scheduleHide } from './state'
 import JsonView from '../../renderer/JsonView.vue'
 
-function nodeDepLabels(store: DebugStore, node: AnyNode): string[] {
-  const ids = store.readsOf(node)
-  if (!ids.length) return []
+interface FlatDep {
+  label: string
+  depth: number
+  isCross: boolean
+}
+
+function buildFlatDeps(
+  store: DebugStore,
+  readerId: string,
+  depth = 0,
+  visited = new Set<string>(),
+): FlatDep[] {
+  if (depth > 5 || visited.has(readerId)) return []
+  visited.add(readerId)
+
   const nodeMap = new Map(store.nodes.value.map(n => [n.id, n]))
-  return ids.map(id => {
-    const info = nodeMap.get(id)
-    if (info?.label) return info.label
-    const parts = (info?.path ?? id).split('.')
-    return parts.slice(-2).join('.')
-  })
+  const depStrings = [...new Set(store.readsOf(readerId))]
+  const result: FlatDep[] = []
+
+  for (const depStr of depStrings) {
+    const lastDot = depStr.lastIndexOf('.')
+    const targetId = lastDot >= 0 ? depStr.slice(0, lastDot) : depStr
+    const targetProp = lastDot >= 0 ? depStr.slice(lastDot + 1) : depStr
+    const isCross = !nodeMap.has(targetId)
+    const nodeName = targetId.split('.').pop() ?? targetId
+    // hide `.diagnostics` — it's an internal delegation detail, node name alone is enough
+    const label = targetProp === 'diagnostics' ? nodeName : `${nodeName}.${targetProp}`
+
+    result.push({ label, depth, isCross })
+
+    // stop recursion at cross-tree boundaries and at .diagnostics edges
+    // (diagnostics delegation is plumbing, not meaningful to the user)
+    if (!isCross && targetProp !== 'diagnostics') {
+      result.push(...buildFlatDeps(store, depStr, depth + 1, new Set(visited)))
+    }
+  }
+
+  return result
 }
 
 const pos = computed(() => {
@@ -61,7 +89,8 @@ interface DomBinding {
   sourceNode: AnyNode | null
   tag: EntityTag
   editable: boolean
-  deps?: string[]
+  deps?: FlatDep[]
+  triggers?: string[]
 }
 
 const domBindings = computed((): DomBinding[] => {
@@ -74,18 +103,34 @@ function computeDomBindings(v: any): DomBinding[] {
 
   if (v.kind === 'input') {
     const src = v.source ?? null
+    const sourceId: string | undefined = (src as any)?.__debug?.id
+    const rawDataRoot = (v.dataRoot as any)?.__rawNode
+    const dataStore: DebugStore | undefined = rawDataRoot?.debug
+    const triggers = dataStore && sourceId
+      ? [...new Set(
+          dataStore.edges.value
+            .filter(e => e.targetId === sourceId && e.targetProp === 'value' && e.reason === 'async.trigger')
+            .map(e => {
+              const node = dataStore.nodes.value.find(n => n.id === e.readerId)
+              return node?.label ?? e.readerId.split('.').pop() ?? e.readerId
+            }),
+        )]
+      : []
     return [{
       prop: 'value',
       value: src?.value,
       sourceNode: src,
       tag: nodeTag(src),
       editable: typeof src?.set === 'function',
+      triggers: triggers.length ? triggers : undefined,
     }]
   }
 
   if (v.kind === 'button') {
     const store: DebugStore | undefined = v.__displayDebug
-    const disabledDeps = store && v.disabled ? nodeDepLabels(store, v.disabled) : []
+    const disabledDeps = store && v.disabled?.__debug?.id
+      ? buildFlatDeps(store, v.disabled.__debug.id)
+      : []
     return [
       {
         prop: 'textContent',
@@ -227,7 +272,8 @@ interface ValidationRow {
 
 const validationRows = computed((): ValidationRow[] => {
   const v = d.value
-  if (!v) return []
+  // buttons never have real validation — skip entirely
+  if (!v || v.kind === 'button') return []
 
   const src = v.kind === 'input' ? v.source : v
   if (!src) return []
@@ -333,7 +379,15 @@ function nodeLabel(v: any): string {
             </span>
           </div>
           <div v-if="binding.deps?.length" class="inspect-deps">
-            ← {{ binding.deps.join(', ') }}
+            <div
+              v-for="(dep, i) in binding.deps"
+              :key="i"
+              :style="{ paddingLeft: (dep.depth * 10) + 'px' }"
+              :class="dep.isCross ? 'dep-cross' : ''"
+            >← {{ dep.label }}</div>
+          </div>
+          <div v-if="binding.triggers?.length" class="inspect-triggers">
+            → {{ binding.triggers.join(', ') }}
           </div>
         </div>
       </div>
@@ -494,9 +548,17 @@ function nodeLabel(v: any): string {
   font-size: 10px;
   color: #6c7086;
   padding: 1px 0 3px 82px;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.inspect-deps .dep-cross {
+  color: #d97706;
+}
+
+.inspect-triggers {
+  font-size: 10px;
+  color: #fab387;
+  padding: 1px 0 3px 82px;
 }
 
 /* invoke button */

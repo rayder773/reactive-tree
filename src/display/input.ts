@@ -1,6 +1,6 @@
 import { computed as vueComputed } from 'vue'
 import { state } from '../nodes/state'
-import { childPath, diagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
+import { childPath, diagnosticsRefs, emptyDiagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
 import type { AnyNode, BuildContext, NodeSpec } from '../types'
 
 export type InputGetter<T> = (self: InputNode) => T
@@ -51,7 +51,7 @@ function buildInputChild(
       },
     }
     context.debug.registerNode(node, { id: path, path, kind: 'computed', active: true })
-    Object.assign(node, diagnosticsRefs(() => []))
+    Object.assign(node, emptyDiagnosticsRefs)
     return node
   }
   else {
@@ -87,7 +87,20 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
       }
 
       registerDebugNode(context, node, 'input')
-      Object.assign(node, diagnosticsRefs(() => nodeDiagnostics(node.source)))
+      const diagnosticsReaderId = childPath(context.path, 'diagnostics')
+      Object.assign(node, diagnosticsRefs(() => {
+        const src = node.source
+        if (src?.__debug?.id) {
+          context.debug.startReader({ readerId: diagnosticsReaderId, reason: 'computed' })
+          try {
+            context.debug.trackRead({ targetId: src.__debug.id, targetProp: 'diagnostics' })
+            return nodeDiagnostics(src)
+          } finally {
+            context.debug.endReader()
+          }
+        }
+        return nodeDiagnostics(src)
+      }))
 
       const inputNodeRef = { current: node }
 

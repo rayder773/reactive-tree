@@ -2,6 +2,16 @@ import { computed as vueComputed } from 'vue'
 import type { AnyNode, BuildContext, Check, Diagnostic, NodeOptions } from '../types'
 import { normalizeCheckResult } from '../checks/check'
 
+const EMPTY_ARRAY: readonly Diagnostic[] = Object.freeze([])
+
+export const emptyDiagnosticsRefs = Object.freeze({
+  diagnostics: Object.freeze({ value: EMPTY_ARRAY }),
+  errors:      Object.freeze({ value: EMPTY_ARRAY }),
+  warnings:    Object.freeze({ value: EMPTY_ARRAY }),
+  valid:       Object.freeze({ value: true }),
+  invalid:     Object.freeze({ value: false }),
+})
+
 export function activeChecks<T>(options?: NodeOptions<T>): Check<T>[] {
   return (options?.checks ?? []).filter(Boolean) as Check<T>[]
 }

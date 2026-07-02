@@ -1,6 +1,6 @@
 import { computed as vueComputed } from 'vue'
 import { state } from '../nodes/state'
-import { childPath, diagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
+import { childPath, diagnosticsRefs, emptyDiagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
 import { resolveMaybeWhen } from '../nodes/when'
 import type { BaseNode, BuildContext, NodeSpec, NodeValue, SectionChildren, SpecNode } from '../types'
 import type { InputNode } from './input'
@@ -96,7 +96,7 @@ export function form<TChildren extends SectionChildren>(
         kind: 'computed',
         active: true,
       })
-      Object.assign(isAnyTouchedNode, diagnosticsRefs(() => []))
+      Object.assign(isAnyTouchedNode, emptyDiagnosticsRefs)
       node.isAnyTouched = isAnyTouchedNode
 
       const isAnyDirtyNode: any = {
@@ -109,7 +109,7 @@ export function form<TChildren extends SectionChildren>(
         kind: 'computed',
         active: true,
       })
-      Object.assign(isAnyDirtyNode, diagnosticsRefs(() => []))
+      Object.assign(isAnyDirtyNode, emptyDiagnosticsRefs)
       node.isAnyDirty = isAnyDirtyNode
 
       const formRef = { current: node }
@@ -129,7 +129,7 @@ export function form<TChildren extends SectionChildren>(
           kind: 'computed',
           active: true,
         })
-        Object.assign(isSubmittingNode, diagnosticsRefs(() => []))
+        Object.assign(isSubmittingNode, emptyDiagnosticsRefs)
         node.isSubmitting = isSubmittingNode
       }
       else {
@@ -155,7 +155,7 @@ export function form<TChildren extends SectionChildren>(
           kind: 'computed',
           active: true,
         })
-        Object.assign(disabledNode, diagnosticsRefs(() => []))
+        Object.assign(disabledNode, emptyDiagnosticsRefs)
         node.disabled = disabledNode
       }
       else {
@@ -184,13 +184,23 @@ export function form<TChildren extends SectionChildren>(
         get: () => valueRef.value,
       })
 
+      const invalidReaderId = childPath(context.path, 'invalid')
       Object.assign(
         node,
-        diagnosticsRefs(() =>
-          Object.keys(children).flatMap(key =>
-            nodeDiagnostics(resolveMaybeWhen(childNodes[key])),
-          ),
-        ),
+        diagnosticsRefs(() => {
+          context.debug.startReader({ readerId: invalidReaderId, reason: 'computed' })
+          try {
+            return Object.keys(children).flatMap(key => {
+              const child = resolveMaybeWhen(childNodes[key])
+              if (child?.__debug?.id) {
+                context.debug.trackRead({ targetId: child.__debug.id, targetProp: 'diagnostics' })
+              }
+              return nodeDiagnostics(child)
+            })
+          } finally {
+            context.debug.endReader()
+          }
+        }),
       )
 
       return node as FormNode<TChildren>
