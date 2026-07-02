@@ -5,6 +5,7 @@ export type DependencyTargetProp =
   | 'value'
   | 'exists'
   | 'valid'
+  | 'invalid'
   | 'errors'
   | 'warnings'
   | 'diagnostics'
@@ -243,6 +244,8 @@ export function createDebugStore(): DebugStore {
               store.trackRead({ targetId: target.__debug.id, targetProp: 'value' })
             } else if (property === 'valid') {
               store.trackRead({ targetId: target.__debug.id, targetProp: 'valid' })
+            } else if (property === 'invalid') {
+              store.trackRead({ targetId: target.__debug.id, targetProp: 'invalid' })
             } else if (property === 'errors') {
               store.trackRead({ targetId: target.__debug.id, targetProp: 'errors' })
             } else if (property === 'warnings') {

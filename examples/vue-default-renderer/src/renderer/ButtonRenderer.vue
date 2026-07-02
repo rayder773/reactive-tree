@@ -2,23 +2,29 @@
 import type { ButtonNode } from '../../../../src'
 
 defineProps<{
-  node?: ButtonNode | null
+  node: ButtonNode
+  label?: string
 }>()
 </script>
 
 <template>
-  <button
-    v-if="node?.kind === 'button' && node.display.value"
-    v-inspect="node"
-    class="app-button"
-    :disabled="node.disabled.value"
-    @click="node.handlers?.click?.call()"
-  >
-    {{ node.label ?? 'Submit' }}
-  </button>
+  <div class="node button-node">
+    <button
+      v-inspect="node"
+      class="app-button"
+      :disabled="node.disabled.value"
+      @click="node.handlers?.click?.call()"
+    >
+      {{ node.label ?? label ?? 'Submit' }}
+    </button>
+  </div>
 </template>
 
 <style scoped>
+.button-node {
+  padding: 4px 0;
+}
+
 .app-button {
   padding: 0.4rem 1.2rem;
   border: 1px solid #ccc;

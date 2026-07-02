@@ -1,13 +1,14 @@
 import { computed as vueComputed } from 'vue'
 import { childPath, diagnosticsRefs, registerDebugNode } from '../nodes/utils'
-import type { AnyNode, BuildContext, NodeSpec } from '../types'
+import type { ActionNode, AnyNode, BuildContext, NodeSpec } from '../types'
 
 export type ButtonGetter<T, TRoot = any> = (root: TRoot) => T
 
 export interface ButtonConfig<TRoot = any> {
   disabled?: ButtonGetter<boolean, TRoot>
   display?: ButtonGetter<boolean, TRoot>
-  label?: string
+  label?: string | (() => string)
+  handlers?: Record<string, ActionNode>
 }
 
 export interface ButtonNode extends AnyNode {
@@ -15,6 +16,9 @@ export interface ButtonNode extends AnyNode {
   readonly disabled: { value: boolean }
   readonly display: { value: boolean }
   readonly label: string | undefined
+  readonly labelReactive: boolean
+  readonly domProp: 'textContent'
+  readonly handlers: Record<string, ActionNode>
 }
 
 function buildComputedChild(
@@ -28,7 +32,7 @@ function buildComputedChild(
     const ref = vueComputed(() =>
       context.debug.runWithReader(
         { readerId: path, reason: 'computed' },
-        () => getter(context.root),
+        () => getter(context.self),
       ),
     )
     const node: any = { kind: 'computed', get value() { return ref.value } }
@@ -47,8 +51,27 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
     build(context: BuildContext): ButtonNode {
       const node: any = {
         kind: 'button' as const,
-        label: config.label,
+        domProp: 'textContent' as const,
+        handlers: config.handlers ?? {},
       }
+
+      if (typeof config.label === 'function') {
+        const labelGetter = config.label
+        const path = childPath(context.path, 'label')
+        const labelRef = vueComputed(() =>
+          context.debug.runWithReader(
+            { readerId: path, reason: 'computed' },
+            () => labelGetter(),
+          ),
+        )
+        Object.defineProperty(node, 'label', { get() { return labelRef.value }, enumerable: true })
+        node.labelReactive = true
+      } else {
+        node.label = config.label
+        node.labelReactive = false
+      }
+
+      Object.defineProperty(node, '__displayDebug', { value: context.debug, enumerable: false })
 
       registerDebugNode(context, node, 'button')
       Object.assign(node, diagnosticsRefs(() => []))

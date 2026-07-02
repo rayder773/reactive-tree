@@ -10,6 +10,7 @@ import type {
 } from '../../../../src'
 import type { SectionNode } from '../../../../src/types'
 import type { FormNode, InputNode } from '../../../../src/display'
+import type { ButtonNode } from '../../../../src/display/button'
 
 const NODE_INTERNAL_KEYS = new Set([
   'kind',
@@ -92,6 +93,10 @@ export function isInputNode(node: AnyNode): node is InputNode {
 
 export function isFormNode(node: AnyNode): node is FormNode<any> {
   return node.kind === 'form'
+}
+
+export function isButtonNode(node: AnyNode): node is ButtonNode {
+  return node.kind === 'button'
 }
 
 export function childEntries(node: AnyNode): NodeEntry[] {

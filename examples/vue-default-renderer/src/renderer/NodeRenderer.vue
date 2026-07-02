@@ -2,6 +2,7 @@
 import { defineComponent, inject, markRaw, h, type PropType, type Slots } from 'vue'
 import type { AnyNode } from '../../../../src'
 import AsyncRenderer from './AsyncRenderer.vue'
+import ButtonRenderer from './ButtonRenderer.vue'
 import ComputedRenderer from './ComputedRenderer.vue'
 import FormRenderer from './FormRenderer.vue'
 import InputRenderer from './InputRenderer.vue'
@@ -11,6 +12,7 @@ import GroupRenderer from './GroupRenderer.vue'
 import StateRenderer from './StateRenderer.vue'
 import {
   isAsyncNode,
+  isButtonNode,
   isComputedNode,
   isFormNode,
   isGroupNode,
@@ -23,6 +25,7 @@ import {
 function renderDefault(node: AnyNode, root: AnyNode, label?: string) {
   if (isInputNode(node)) return h(InputRenderer, { node, root, label })
   if (isFormNode(node)) return h(FormRenderer, { node, root, label })
+  if (isButtonNode(node)) return h(ButtonRenderer, { node, label })
   if (isAsyncNode(node)) return h(AsyncRenderer, { node, label })
   if (isStateNode(node)) return h(StateRenderer, { node, root, label })
   if (isComputedNode(node)) return h(ComputedRenderer, { node, label })

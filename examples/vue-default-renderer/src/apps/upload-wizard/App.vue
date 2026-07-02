@@ -13,7 +13,7 @@
 
       <hr />
 
-      <AppButton :node="wizardDisplay.submitButton" @click="onSubmit" />
+      <AppButton :node="wizardDisplay.submitButton" />
     </div>
   </div>
 </template>
@@ -24,8 +24,4 @@ import { wizard } from './tree'
 import AppSelect from '../../ui/AppSelect.vue'
 import AppFileInput from '../../ui/AppFileInput.vue'
 import AppButton from '../../ui/AppButton.vue'
-
-function onSubmit() {
-  console.log('submit', wizard.file.value)
-}
 </script>

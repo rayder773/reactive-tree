@@ -1,11 +1,25 @@
-import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, required, state, type StateNode, when } from "../../../../../src";
+import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, required, state, type StateNode, withActions, when } from "../../../../../src";
 import { createSimAdapter, error, loading, success } from '../../../../../src/adapters/sim'
 
 export const wizard = createTree({
-	currentStep: state<UploadStep>('upload', {
-		label: 'Current step',
-		checks: [oneOf(['upload', 'mapping', 'result'])],
-	}),
+	currentStep: withActions(
+		state<UploadStep>('upload', {
+			label: 'Current step',
+			checks: [oneOf(['upload', 'mapping', 'result'])],
+		}),
+		{
+			goNext: (self) => {
+				const steps: UploadStep[] = ['upload', 'mapping', 'result']
+				const idx = steps.indexOf(self.value)
+				self.set(steps[Math.min(idx + 1, steps.length - 1)])
+			},
+			goPrev: (self) => {
+				const steps: UploadStep[] = ['upload', 'mapping', 'result']
+				const idx = steps.indexOf(self.value)
+				self.set(steps[Math.max(idx - 1, 0)])
+			},
+		},
+	),
 
 	uploadType: state<UploadType>('approvedVendorList', {
 		id: 'upload-type',

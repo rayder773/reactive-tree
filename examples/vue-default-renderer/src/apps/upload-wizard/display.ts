@@ -41,8 +41,11 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
   }),
 
   submitButton: button<WizardDisplay>({
-    label: 'Upload',
+    label: () => i18n.t.value.submit,
     disabled: root => root.uploadForm.invalid.value,
+    handlers: {
+      click: wizard.currentStep.goNext,
+    },
   }),
 
 }), {
@@ -51,6 +54,7 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
       defaultLocale: 'en',
       messages: {
         en: {
+          submit: 'Upload',
           uploadType: {
             approvedVendorList: 'Approved vendor list',
             customPartData: 'Custom part data',
@@ -61,6 +65,7 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
           },
         },
         uk: {
+          submit: 'Завантажити',
           uploadType: {
             approvedVendorList: 'Список постачальників',
             customPartData: 'Кастомні дані',

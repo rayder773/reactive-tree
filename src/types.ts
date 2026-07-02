@@ -30,6 +30,16 @@ export interface Check<T = unknown> {
   run(value: T, context: CheckContext): CheckResult | Diagnostic | Diagnostic[] | null | undefined
 }
 
+export interface ActionNode {
+  readonly kind: 'action'
+  readonly name: string
+  readonly ownerPath: string
+  readonly ownerLabel?: string
+  call(): void
+}
+
+export type StateActions<T> = Record<string, (self: StateNode<T>) => void>
+
 export interface NodeOptions<T = unknown> {
   id?: string
   label?: string
@@ -72,12 +82,12 @@ export interface BaseNode<TValue = unknown> {
   readonly warnings: ComputedRef<Diagnostic[]>
 }
 
-export interface StateNode<T> extends BaseNode<T> {
+export type StateNode<T, TActions extends Record<string, unknown> = {}> = BaseNode<T> & {
   readonly kind: 'state'
   readonly value: T
   set(value: T): boolean
   reset(): void
-}
+} & { readonly [K in keyof TActions]: ActionNode }
 
 export interface ComputedNode<T> extends BaseNode<T> {
   readonly kind: 'computed'

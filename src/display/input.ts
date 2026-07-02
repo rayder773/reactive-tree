@@ -20,6 +20,7 @@ export interface InputNode extends AnyNode {
   readonly kind: 'input'
   readonly source: { value: unknown; set(v: unknown): void } | undefined
   readonly dataRoot: any
+  readonly domProp: 'value'
   readonly touched: { value: boolean; set(v: boolean): boolean }
   readonly focused: { value: boolean; set(v: boolean): boolean }
   readonly showError: { value: boolean }
@@ -82,6 +83,7 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
         touched,
         focused,
         dataRoot: context.data,
+        domProp: 'value' as const,
       }
 
       registerDebugNode(context, node, 'input')

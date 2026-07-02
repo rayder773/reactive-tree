@@ -3,7 +3,7 @@ export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'
 export { record } from './nodes/record'
-export { state } from './nodes/state'
+export { state, withActions } from './nodes/state'
 export { switchNode } from './nodes/switchNode'
 export { when } from './nodes/when'
 
@@ -37,6 +37,7 @@ export type {
 } from './debug'
 
 export type {
+  ActionNode,
   AnyNode,
   AsyncError,
   AsyncNode,

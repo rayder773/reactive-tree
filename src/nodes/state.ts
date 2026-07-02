@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import type { BuildContext, NodeOptions, NodeSpec, StateNode } from '../types'
+import type { ActionNode, BuildContext, NodeOptions, NodeSpec, StateActions, StateNode } from '../types'
 import { activeChecks, diagnosticsFor, diagnosticsRefs, registerDebugNode } from './utils'
 import { normalizeCheckResult } from '../checks/check'
 
@@ -52,6 +52,30 @@ export function state<T>(
       )
 
       context.registerNode?.(node)
+
+      return node
+    },
+  }
+}
+
+export function withActions<T, TActions extends StateActions<T>>(
+  stateSpec: NodeSpec<StateNode<T>>,
+  actions: TActions,
+): NodeSpec<StateNode<T, TActions>> {
+  return {
+    build(context: BuildContext): StateNode<T, TActions> {
+      const node = stateSpec.build(context) as StateNode<T, TActions>
+
+      for (const [name, fn] of Object.entries(actions)) {
+        const actionNode: ActionNode = {
+          kind: 'action',
+          name,
+          ownerPath: context.path,
+          ownerLabel: node.label,
+          call: () => fn(node),
+        }
+        ;(node as any)[name] = actionNode
+      }
 
       return node
     },

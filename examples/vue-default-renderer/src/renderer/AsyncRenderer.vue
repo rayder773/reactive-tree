@@ -18,6 +18,7 @@ const isPending = computed(
 <template>
   <div class="node async-node">
     <div class="async-header">
+      <span class="async-kind-tag">⟳ async</span>
       <span class="field-label">{{ title }}</span>
       <span :class="['async-status', `async-status--${node.status}`]">{{ node.status }}</span>
       <button class="async-refetch" :disabled="isPending" @click="node.refetch()">
