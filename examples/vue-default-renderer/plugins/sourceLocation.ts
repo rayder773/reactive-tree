@@ -98,7 +98,8 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
     }
   }
 
-  if (localToFactory.size === 0 && !i18nPluginLocalName) return null
+  const hasI18nLabelPattern = code.includes('.t.value.')
+  if (localToFactory.size === 0 && !i18nPluginLocalName && !hasI18nLabelPattern) return null
 
   const ms = new MagicString(code)
   const absFile = id
@@ -131,19 +132,14 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
     })
   }
 
-  // ── Pass 2: i18n label source injection ─────────────────────────────────────
-  // Strategy:
-  //   a) Find createI18nPlugin({ messages: { FIRST_LOCALE: { KEY: … } } }) and record
-  //      which line each top-level key lives on in the source file.
-  //   b) Find `label: () => ….t.value.KEY` arrow functions (expression body, non-computed
-  //      final member access) and wrap them with Object.assign so the button factory
-  //      can read __i18nSource at build time.
+  // ── Pass 2a: embed __keyLines into createI18nPlugin result ──────────────────
+  // Wraps the createI18nPlugin({…}) call so that the returned plugin object
+  // carries __keyLines = { KEY: { file, line } } for every top-level message key.
+  // This allows label functions in OTHER files to look up source locations at
+  // runtime without needing the key map statically available at transform time.
 
   if (i18nPluginLocalName) {
-    let i18nKeyLines: Record<string, number> | null = null
-
     walkAst(ast.program, (node) => {
-      if (i18nKeyLines !== null) return // already found
       if (node.type !== 'CallExpression') return
       if (node.callee.type !== 'Identifier') return
       if (node.callee.name !== i18nPluginLocalName) return
@@ -159,45 +155,51 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
       const firstLocale = messagesProp.value.properties[0]
       if (!firstLocale || firstLocale.value?.type !== 'ObjectExpression') return
 
-      const keys: Record<string, number> = {}
+      const keyLines: Record<string, { file: string; line: number }> = {}
       for (const prop of firstLocale.value.properties) {
         if (prop.type !== 'ObjectProperty') continue
         const k = prop.key.type === 'Identifier' ? prop.key.name : prop.key.value
-        if (k && prop.loc) keys[k] = prop.loc.start.line
+        if (k && prop.loc) keyLines[k] = { file: absFile, line: prop.loc.start.line }
       }
-      i18nKeyLines = keys
+
+      const keyLinesJson = JSON.stringify(keyLines)
+      ms.appendLeft(node.start!, 'Object.assign(')
+      ms.appendLeft(node.end!, `, { __keyLines: ${keyLinesJson} })`)
     })
+  }
 
-    if (i18nKeyLines) {
-      const keyLines = i18nKeyLines as Record<string, number>
+  // ── Pass 2b: wrap label functions with dynamic __i18nSource getter ───────────
+  // Find: ObjectProperty { label: () => PLUGIN.t.value.KEY }
+  // Wrap: Object.assign(() => PLUGIN.t.value.KEY, { get __i18nSource() { return PLUGIN.__keyLines?.['KEY'] } })
+  // PLUGIN is extracted from the AST — works regardless of which file defines the plugin.
 
-      walkAst(ast.program, (node) => {
-        // Find: ObjectProperty with key "label" whose value is () => *.t.value.KEY
-        if (node.type !== 'ObjectProperty') return
-        const propKey = node.key.type === 'Identifier' ? node.key.name : node.key.value
-        if (propKey !== 'label') return
+  if (hasI18nLabelPattern) {
+    walkAst(ast.program, (node) => {
+      if (node.type !== 'ObjectProperty') return
+      const propKey = node.key.type === 'Identifier' ? node.key.name : node.key.value
+      if (propKey !== 'label') return
 
-        const fn = node.value
-        if (fn.type !== 'ArrowFunctionExpression') return
+      const fn = node.value
+      if (fn.type !== 'ArrowFunctionExpression') return
 
-        // Must be expression body (not block), non-computed final member: .t.value.KEY
-        const body = fn.body
-        if (body.type !== 'MemberExpression') return
-        if (body.computed) return
-        if (body.object?.type !== 'MemberExpression') return
-        if (body.object.property?.type !== 'Identifier') return
-        if (body.object.property.name !== 'value') return
-        if (body.property?.type !== 'Identifier') return
+      // Match expression body of form PLUGIN.t.value.KEY (all non-computed)
+      const body = fn.body
+      if (body.type !== 'MemberExpression' || body.computed) return
+      if (body.object?.type !== 'MemberExpression') return
+      if (body.object.property?.type !== 'Identifier') return
+      if (body.object.property.name !== 'value') return
+      if (body.object.object?.type !== 'MemberExpression') return
+      if (body.object.object.property?.type !== 'Identifier') return
+      if (body.object.object.property.name !== 't') return
+      if (body.object.object.object?.type !== 'Identifier') return
+      if (body.property?.type !== 'Identifier') return
 
-        const i18nKey: string = body.property.name
-        const sourceLine = keyLines[i18nKey]
-        if (!sourceLine) return
+      const i18nKey: string = body.property.name
+      const pluginRef: string = body.object.object.object.name
 
-        // Wrap: Object.assign(() => …, { __i18nSource: { file, line } })
-        ms.appendLeft(fn.start!, 'Object.assign(')
-        ms.appendLeft(fn.end!, `, { __i18nSource: { file: ${JSON.stringify(absFile)}, line: ${sourceLine} } })`)
-      })
-    }
+      ms.appendLeft(fn.start!, 'Object.assign(')
+      ms.appendLeft(fn.end!, `, { get __i18nSource() { return ${pluginRef}.__keyLines?.['${i18nKey}'] } })`)
+    })
   }
 
   if (!ms.hasChanged()) return null

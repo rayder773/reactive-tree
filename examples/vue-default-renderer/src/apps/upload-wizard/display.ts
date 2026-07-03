@@ -1,5 +1,6 @@
-import { button, createDisplayTree, createI18nPlugin, form, input, valuesFrom, when } from '../../../../../src'
+import { button, createDisplayTree, form, input, valuesFrom, when } from '../../../../../src'
 import type { ButtonNode, FormNode, InputNode } from '../../../../../src'
+import { i18nPlugin } from './i18n'
 import { type ApprovedAction, type UploadType, wizard } from './tree'
 
 type WizardDisplay = {
@@ -50,32 +51,6 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
 
 }), {
   plugins: {
-    i18n: createI18nPlugin({
-      defaultLocale: 'en',
-      messages: {
-        en: {
-          submit: 'Upload',
-          uploadType: {
-            approvedVendorList: 'Approved vendor list',
-            customPartData: 'Custom part data',
-          },
-          approvedAction: {
-            createNew: 'Create new',
-            replaceExisting: 'Replace existing',
-          },
-        },
-        uk: {
-          submit: 'Завантажити',
-          uploadType: {
-            approvedVendorList: 'Список постачальників',
-            customPartData: 'Кастомні дані',
-          },
-          approvedAction: {
-            createNew: 'Створити новий',
-            replaceExisting: 'Замінити існуючий',
-          },
-        },
-      },
-    }),
+    i18n: i18nPlugin,
   },
 })
