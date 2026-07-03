@@ -86,6 +86,7 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
 
   const localToFactory = new Map<string, string>()
   let i18nPluginLocalName: string | null = null
+  let defineAsyncLocalName: string | null = null
 
   for (const node of ast.program.body) {
     if (node.type !== 'ImportDeclaration') continue
@@ -95,11 +96,12 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
       const imported = spec.imported.type === 'Identifier' ? spec.imported.name : spec.imported.value
       if (TRACKED_FACTORIES.has(imported)) localToFactory.set(spec.local.name, imported)
       if (imported === 'createI18nPlugin') i18nPluginLocalName = spec.local.name
+      if (imported === 'defineAsync') defineAsyncLocalName = spec.local.name
     }
   }
 
   const hasI18nLabelPattern = code.includes('.t.value.')
-  if (localToFactory.size === 0 && !i18nPluginLocalName && !hasI18nLabelPattern) return null
+  if (localToFactory.size === 0 && !i18nPluginLocalName && !hasI18nLabelPattern && !defineAsyncLocalName) return null
 
   const ms = new MagicString(code)
   const absFile = id
@@ -199,6 +201,25 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
 
       ms.appendLeft(fn.start!, 'Object.assign(')
       ms.appendLeft(fn.end!, `, { get __i18nSource() { return ${pluginRef}.__keyLines?.['${i18nKey}'] } })`)
+    })
+  }
+
+  // ── Pass 3: inject import.meta.env into defineAsync calls ───────────────────
+  // defineAsync lives in library code outside Vite's project root, so
+  // import.meta.env is not available there. The plugin injects it as the
+  // third argument here in app code where Vite env is always present.
+
+  if (defineAsyncLocalName) {
+    walkAst(ast.program, (node) => {
+      if (node.type !== 'CallExpression') return
+      if (node.callee.type !== 'Identifier') return
+      if (node.callee.name !== defineAsyncLocalName) return
+      if (node.arguments.length !== 2) return
+
+      const lastArg = node.arguments[1]
+      const textAfterLastArg = code.slice(lastArg.end!, node.end! - 1)
+      const hasTrailingComma = textAfterLastArg.includes(',')
+      ms.appendLeft(node.end! - 1, hasTrailingComma ? 'import.meta.env' : ', import.meta.env')
     })
   }
 

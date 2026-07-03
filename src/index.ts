@@ -1,4 +1,7 @@
 export { createTree } from './createTree'
+export { defineAsync } from './adapters/defineAsync'
+export type { DefineAsyncConfig } from './adapters/defineAsync'
+export type { SimScenario } from './adapters/sim'
 export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'
