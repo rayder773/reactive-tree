@@ -38,7 +38,7 @@ export const wizard = createTree({
 
 	file: state<FileData | null>(null, {
 		label: 'File',
-		checks: [required(), fileType(['xlsx', 'xls', 'csv', 'png', 'pdf'])],
+		checks: [required(), fileType(['csv'])],
 	}),
 
 	uploadedFileId,

@@ -15,6 +15,9 @@
 
       <AppButton :node="wizardDisplay.submitButton" />
     </div>
+    <div v-else-if="wizard.currentStep.value === 'mapping'">
+      11
+    </div>
   </div>
 </template>
 

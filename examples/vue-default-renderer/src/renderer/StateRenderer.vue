@@ -4,6 +4,7 @@ import type { AnyNode, StateNode } from '../../../../src'
 import DiagnosticsView from './DiagnosticsView.vue'
 import {
   controlKind,
+  fileTypeAccept,
   manyOfOptions,
   nodeTitle,
   oneOfOptions,
@@ -18,6 +19,7 @@ const props = defineProps<{
 }>()
 
 const kind = computed(() => controlKind(props.node, props.root))
+const accept = computed(() => fileTypeAccept(props.node))
 const options = computed(() => oneOfOptions(props.node, props.root) ?? [])
 const manyOptions = computed(() => manyOfOptions(props.node, props.root) ?? [])
 const title = computed(() => nodeTitle(props.node, props.label || 'state'))
@@ -102,8 +104,9 @@ function toggleMany(option: unknown, event: Event) {
       />
 
       <span v-else-if="kind === 'file'" class="file-control">
-        <input type="file" @change="setFromFile" />
+        <input type="file" :accept="accept ?? undefined" @change="setFromFile" />
         <small v-if="node.value">Selected: {{ stringifyValue(node.value) }}</small>
+        <small v-else-if="accept" class="file-accept-hint">{{ accept }}</small>
       </span>
 
       <input

@@ -4,6 +4,7 @@ import type { AnyNode } from '../../../../src'
 import type { InputNode } from '../../../../src/display'
 import {
   controlKind,
+  fileTypeAccept,
   manyOfOptions,
   nodeTitle,
   oneOfOptions,
@@ -22,6 +23,7 @@ const dataRoot = computed((): AnyNode => (props.node as any).dataRoot ?? props.r
 const title = computed(() => nodeTitle(props.node, props.label || 'input'))
 const asNode = (s: NonNullable<typeof source.value>) => s as unknown as AnyNode
 const kind = computed(() => source.value ? controlKind(asNode(source.value), dataRoot.value) : 'text')
+const accept = computed(() => source.value ? fileTypeAccept(asNode(source.value)) : undefined)
 const options = computed(() => source.value ? oneOfOptions(asNode(source.value), dataRoot.value) ?? [] : [])
 const manyOptions = computed(() => source.value ? manyOfOptions(asNode(source.value), dataRoot.value) ?? [] : [])
 
@@ -130,12 +132,14 @@ function toggleMany(option: unknown, event: Event) {
       <span v-else-if="kind === 'file'" class="file-control">
         <input
           type="file"
+          :accept="accept ?? undefined"
           :disabled="node.disabled.value"
           @change="setFromFile"
           @focus="onFocus"
           @blur="onBlur"
         />
         <small v-if="source.value">{{ stringifyValue(source.value) }}</small>
+        <small v-else-if="accept" class="file-accept-hint">{{ accept }}</small>
       </span>
 
       <input

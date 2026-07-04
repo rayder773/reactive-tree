@@ -213,6 +213,18 @@ export function hasFileTypeCheck(node: AnyNode): boolean {
   return checkMetadata(node, 'fileType') !== undefined
 }
 
+export function fileTypeAccept(node: AnyNode): string | undefined {
+  const metadata = checkMetadata(node, 'fileType')
+  if (!metadata || typeof metadata !== 'object' || !('extensions' in metadata)) {
+    return undefined
+  }
+  const extensions = (metadata as { extensions: unknown }).extensions
+  if (!Array.isArray(extensions) || extensions.length === 0) {
+    return undefined
+  }
+  return extensions.map((ext: string) => `.${ext}`).join(',')
+}
+
 export function controlKind(node: AnyNode, root: AnyNode): ControlKind {
   if (Array.isArray(node.value) && manyOfOptions(node, root)) {
     return 'checkboxGroup'
