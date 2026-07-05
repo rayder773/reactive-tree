@@ -12,15 +12,29 @@ const props = defineProps<{
 const selectedReason = ref<DependencyReason | 'all'>('all')
 const selectedNodeId = ref<string | null>(null)
 
+function edgeKey(edge: { readerId: string; targetId: string; targetProp: string; reason: string }): string {
+  return `${edge.readerId}\0${edge.targetId}\0${edge.targetProp}\0${edge.reason}`
+}
+
 const crossEdges = computed(() => props.tree.debug.crossEdges.value)
+const visibleCrossEdges = computed(() =>
+  crossEdges.value.filter(edge => edge.targetProp !== 'diagnostics'),
+)
+const visibleInternalEdges = computed(() => {
+  const crossEdgeKeys = new Set(visibleCrossEdges.value.map(edgeKey))
+
+  return props.tree.debug.edges.value.filter(edge =>
+    edge.targetProp !== 'diagnostics' && !crossEdgeKeys.has(edgeKey(edge)),
+  )
+})
 
 const reasons = computed(() => {
-  const allEdges = [...props.tree.debug.edges.value, ...crossEdges.value]
+  const allEdges = [...visibleInternalEdges.value, ...visibleCrossEdges.value]
   return Array.from(new Set(allEdges.map(edge => edge.reason))).sort()
 })
 const nodes = computed(() => props.tree.debug.nodes.value)
 const edges = computed(() => {
-  const source = props.tree.debug.edges.value
+  const source = visibleInternalEdges.value
 
   return selectedReason.value === 'all'
     ? source
@@ -28,8 +42,8 @@ const edges = computed(() => {
 })
 const filteredCrossEdges = computed(() =>
   selectedReason.value === 'all'
-    ? crossEdges.value
-    : crossEdges.value.filter(edge => edge.reason === selectedReason.value),
+    ? visibleCrossEdges.value
+    : visibleCrossEdges.value.filter(edge => edge.reason === selectedReason.value),
 )
 const layout = computed(() => buildGraphLayout(edges.value, filteredCrossEdges.value))
 </script>

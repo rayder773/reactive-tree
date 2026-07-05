@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import DependencyGraph from './renderer/debug/DependencyGraph.vue'
 import JsonView from './renderer/JsonView.vue'
 import TreeRenderer from './renderer/TreeRenderer.vue'
@@ -7,6 +8,8 @@ const props = defineProps<{
   tree: any
   display?: any
 }>()
+
+const treeDiagnostics = computed(() => props.tree.diagnostics.value)
 </script>
 
 <template>
@@ -36,7 +39,9 @@ const props = defineProps<{
     <h2>Data tree value</h2>
     <pre class="debug-block"><JsonView :value="props.tree.value" :indent="1" /></pre>
 
-    <h2>Data tree diagnostics</h2>
-    <pre class="debug-block">{{ props.tree.diagnostics.value }}</pre>
+    <template v-if="treeDiagnostics.length">
+      <h2>Data tree diagnostics</h2>
+      <pre class="debug-block">{{ treeDiagnostics }}</pre>
+    </template>
   </div>
 </template>
