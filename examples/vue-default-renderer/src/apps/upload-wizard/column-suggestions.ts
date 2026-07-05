@@ -1,5 +1,6 @@
 import { asyncNode, defineAsync } from '../../../../../src'
 import { success } from '../../../../../src/adapters/sim'
+import type { Wizard } from './tree'
 
 export type KnownColumn = 'mpn' | 'manufacturer' | 'ipn'
 
@@ -13,8 +14,6 @@ export async function fetchColumnSuggestions(_fileId: string): Promise<ColumnSug
   return r.json()
 }
 
-type AsyncSelf = { uploadedFileId: { value: { id: string } | null } }
-
 const MOCK_SUGGESTIONS: ColumnSuggestion[] = [
   { name: 'Part Number', mappedTo: 'mpn' },
   { name: 'Vendor Name', mappedTo: 'manufacturer' },
@@ -26,8 +25,8 @@ const MOCK_SUGGESTIONS: ColumnSuggestion[] = [
 export const columnSuggestions = defineAsync(
   asyncNode<ColumnSuggestion[], { id: string }>({
     label: 'Column suggestions',
-    trigger: (self: AsyncSelf) => self.uploadedFileId.value?.id,
-    payload: (self: AsyncSelf) => self.uploadedFileId.value!,
+    trigger: (self: Wizard) => self.uploadedFileId.value?.id,
+    payload: (self: Wizard) => self.uploadedFileId.value!,
   }),
   {
     fetch: async (payload) => fetchColumnSuggestions(payload.id),

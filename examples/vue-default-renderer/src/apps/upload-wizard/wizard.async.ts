@@ -1,13 +1,12 @@
-import { asyncNode, defineAsync, type FileData, type StateNode } from '../../../../../src'
+import { asyncNode, defineAsync, type FileData } from '../../../../../src'
 import { error, loading, success } from '../../../../../src/adapters/sim'
-
-type AsyncSelf = { file: StateNode<FileData | null> }
+import type { Wizard } from './tree'
 
 export const uploadedFileId = defineAsync(
 	asyncNode<{ id: string }, FileData>({
 		label: 'Uploaded file ID',
-		trigger: (self: AsyncSelf) => self.file.value,
-		payload: (self: AsyncSelf) => self.file.value!,
+		trigger: (self: Wizard) => self.file.value,
+		payload: (self: Wizard) => self.file.value!,
 	}),
 	{
 		fetch: async (payload, signal) => {

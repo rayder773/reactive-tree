@@ -179,46 +179,52 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
     })
   }
 
-  // ── Pass 2b: wrap text getter functions with dynamic __i18nSource getter ──────
-  // Find: ObjectProperty { label|header: () => PLUGIN.t.value[.NS]*.KEY }
-  // Wrap: Object.assign(() => ..., { get __i18nSource() { return PLUGIN.__keyLines?.['NS.KEY'] } })
-  // Handles arbitrary nesting depth, e.g. i18n.t.value.mapping.field → key 'mapping.field'.
+  // ── Pass 2b: wrap text getter functions ──────────────────────────────────────
+  // Always injects __textSource (declaration line in this file) on any text/label/header arrow fn.
+  // Additionally injects __i18nSource for functions matching PLUGIN.t.value[.NS]*.KEY.
 
-  if (hasI18nLabelPattern) {
-    // Traverse PLUGIN.t.value[.NS]*.KEY → { pluginRef, keyPath } or null.
-    // Collects all parts right-to-left, then checks the root is IDENTIFIER.t.value.
-    function extractI18nRef(expr: any): { pluginRef: string; keyPath: string } | null {
-      const parts: string[] = []
-      let cur = expr
-      while (cur.type === 'MemberExpression' && !cur.computed) {
-        if (cur.property.type !== 'Identifier') return null
-        parts.unshift(cur.property.name)
-        cur = cur.object
-      }
-      // After the loop cur is the root Identifier (plugin name).
-      // parts = ['t', 'value', ...keySegments]
-      if (cur.type !== 'Identifier') return null
-      if (parts.length < 3 || parts[0] !== 't' || parts[1] !== 'value') return null
-      return { pluginRef: cur.name, keyPath: parts.slice(2).join('.') }
+  // Traverse PLUGIN.t.value[.NS]*.KEY → { pluginRef, keyPath } or null.
+  function extractI18nRef(expr: any): { pluginRef: string; keyPath: string } | null {
+    const parts: string[] = []
+    let cur = expr
+    while (cur.type === 'MemberExpression' && !cur.computed) {
+      if (cur.property.type !== 'Identifier') return null
+      parts.unshift(cur.property.name)
+      cur = cur.object
     }
-
-    const TRACKED_TEXT_PROPS = new Set(['label', 'header', 'text'])
-
-    walkAst(ast.program, (node) => {
-      if (node.type !== 'ObjectProperty') return
-      const propKey = node.key.type === 'Identifier' ? node.key.name : node.key.value
-      if (!TRACKED_TEXT_PROPS.has(propKey)) return
-
-      const fn = node.value
-      if (fn.type !== 'ArrowFunctionExpression') return
-
-      const ref = extractI18nRef(fn.body)
-      if (!ref) return
-
-      ms.appendLeft(fn.start!, 'Object.assign(')
-      ms.appendLeft(fn.end!, `, { get __i18nSource() { return ${ref.pluginRef}.__keyLines?.['${ref.keyPath}'] } })`)
-    })
+    if (cur.type !== 'Identifier') return null
+    if (parts.length < 3 || parts[0] !== 't' || parts[1] !== 'value') return null
+    return { pluginRef: cur.name, keyPath: parts.slice(2).join('.') }
   }
+
+  const TRACKED_TEXT_PROPS = new Set(['label', 'header', 'text'])
+
+  walkAst(ast.program, (node) => {
+    if (node.type !== 'ObjectProperty') return
+    const propKey = node.key.type === 'Identifier' ? node.key.name : node.key.value
+    if (!TRACKED_TEXT_PROPS.has(propKey)) return
+
+    let fn = node.value
+    // handle text: text(() => ...) — unwrap the call wrapper
+    if (
+      fn.type === 'CallExpression' &&
+      fn.callee.type === 'Identifier' &&
+      fn.arguments.length >= 1 &&
+      fn.arguments[0].type === 'ArrowFunctionExpression'
+    ) {
+      fn = fn.arguments[0]
+    }
+    if (fn.type !== 'ArrowFunctionExpression') return
+
+    const ref = extractI18nRef(fn.body)
+    const textLine = node.loc!.start.line
+
+    const extras: string[] = [`__textSource: { file: ${JSON.stringify(absFile)}, line: ${textLine} }`]
+    if (ref) extras.push(`get __i18nSource() { return ${ref.pluginRef}.__keyLines?.['${ref.keyPath}'] }`)
+
+    ms.appendLeft(fn.start!, 'Object.assign(')
+    ms.appendLeft(fn.end!, `, { ${extras.join(', ')} })`)
+  })
 
   // ── Pass 3: inject import.meta.env into defineAsync calls ───────────────────
   // defineAsync lives in library code outside Vite's project root, so

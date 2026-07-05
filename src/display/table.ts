@@ -72,7 +72,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
 
         const cellPath = childPath(columnsPath, id)
         const textI18nSource = typeof col.text === 'function'
-          ? (col.text as any).__i18nSource
+          ? (col.text as any).__textSource ?? (col.text as any).__i18nSource
           : undefined
         const cellRef = vueComputed(() =>
           context.debug.runWithReader(
@@ -85,7 +85,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
         Object.defineProperty(cellNode, '__displayDebug', { value: context.debug, enumerable: false })
         Object.defineProperty(cellNode, '__domBindings', {
           enumerable: false,
-          value: [{ prop: 'value', sourceNode: null, readerNodeId: cellPath, tag: 'display', editable: false, sourceLocation: textI18nSource ?? tableSource }],
+          value: [{ prop: 'textContent', sourceNode: null, readerNodeId: cellPath, tag: 'display', editable: false, sourceLocation: textI18nSource ?? tableSource }],
         })
         Object.assign(cellNode, emptyDiagnosticsRefs)
         columnNodeCache.set(id, cellNode)
@@ -99,7 +99,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
 
         const cellPath = childPath(rowsPath, id)
         const textI18nSource = typeof row.text === 'function'
-          ? (row.text as any).__i18nSource
+          ? (row.text as any).__textSource ?? (row.text as any).__i18nSource
           : undefined
         const cellRef = vueComputed(() =>
           context.debug.runWithReader(
@@ -112,7 +112,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
         Object.defineProperty(cellNode, '__displayDebug', { value: context.debug, enumerable: false })
         Object.defineProperty(cellNode, '__domBindings', {
           enumerable: false,
-          value: [{ prop: 'value', sourceNode: null, readerNodeId: cellPath, tag: 'display', editable: false, sourceLocation: textI18nSource ?? tableSource }],
+          value: [{ prop: 'textContent', sourceNode: null, readerNodeId: cellPath, tag: 'display', editable: false, sourceLocation: textI18nSource ?? tableSource }],
         })
         Object.assign(cellNode, emptyDiagnosticsRefs)
         rowNodeCache.set(id, cellNode)

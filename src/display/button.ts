@@ -69,7 +69,7 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
         )
         Object.defineProperty(node, 'text', { get() { return textRef.value }, enumerable: true })
         node.textReactive = true
-        const i18nSource = (config.text as any).__i18nSource
+        const i18nSource = (config.text as any).__textSource ?? (config.text as any).__i18nSource
         if (i18nSource) node.i18nSourceLocation = i18nSource
       } else {
         node.text = config.text

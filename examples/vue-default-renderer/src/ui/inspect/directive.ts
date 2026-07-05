@@ -71,7 +71,9 @@ function setup(el: InspectEl, descriptor: unknown) {
     // .parent is the caller component (App.vue etc.) that wrote <AppSelect :node="..."/>
     // :__inspectSourceLine is injected by the Vite plugin onto <AppSelect> in App.vue
     const rendererInstance = (el as any).__vueParentComponent
-    const file: string | undefined = rendererInstance?.parent?.type?.__file
+    // vnode.ctx is the component that created this vnode (the slot provider / template owner),
+    // which is correct even for components rendered inside a foreign slot.
+    const file: string | undefined = rendererInstance?.vnode?.ctx?.type?.__file
     const sourceLine: number | undefined = rendererInstance?.vnode?.props?.['__inspectSourceLine']
     const sourceLocation = file ? { file, line: sourceLine ?? 1 } : undefined
     showInspect(el.__inspectDescriptor, badge.getBoundingClientRect(), focusFn, sourceLocation)

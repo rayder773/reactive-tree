@@ -66,6 +66,7 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
         value: v,
         label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
       })),
+      disabled: () => wizard.columnSuggestions.status === 'loading',
     }),
 
     manufacturer: input({
@@ -74,6 +75,7 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
         value: v,
         label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
       })),
+      disabled: () => wizard.columnSuggestions.status === 'loading',
     }),
 
     ipn: input({
@@ -82,6 +84,7 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
         value: v,
         label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
       })),
+      disabled: () => wizard.columnSuggestions.status === 'loading',
     }),
   }),
 

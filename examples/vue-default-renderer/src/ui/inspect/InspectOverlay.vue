@@ -48,6 +48,18 @@ function buildFlatDeps(
   return result
 }
 
+function filterI18nDeps(deps: FlatDep[]): FlatDep[] {
+  const result: FlatDep[] = []
+  let skipDepth: number | null = null
+  for (const dep of deps) {
+    if (skipDepth !== null && dep.depth > skipDepth) continue
+    skipDepth = null
+    if (dep.label.startsWith('t.')) { skipDepth = dep.depth; continue }
+    result.push(dep)
+  }
+  return result
+}
+
 const pos = computed(() => {
   const rect = activeEntry.value?.badgeRect
   if (!rect) return null
@@ -127,9 +139,13 @@ function computeDomBindings(v: any): DomBinding[] {
       : []
 
     let tag: EntityTag = b.tag as EntityTag
-    if (tag === 'display' && deps.some((dep: FlatDep) => dep.label.startsWith('t.'))) {
+    let i18nSourceLocation: { file: string; line: number } | undefined
+    const tDep = deps.find((dep: FlatDep) => dep.label.startsWith('t.'))
+    if (tag === 'display' && tDep) {
       tag = 'i18n'
+      i18nSourceLocation = tDep.sourceLocation
     }
+
 
     const triggers = dataStore && sourceId
       ? [...new Set(
@@ -157,16 +173,18 @@ function computeDomBindings(v: any): DomBinding[] {
     // sourceNode is null for computed cells — fall back to the node's own value
     const value = sourceNode !== null ? sourceNode.value : v.value
 
+    const filteredDeps = tag === 'i18n' ? filterI18nDeps(deps) : deps
+
     return {
       prop: b.prop,
       value,
       sourceNode,
       tag,
       editable: b.editable,
-      deps: deps.length ? deps : undefined,
+      deps: filteredDeps.length ? filteredDeps : undefined,
       triggers: triggers.length ? triggers : undefined,
       watchers: watchers.length ? watchers : undefined,
-      sourceLocation: b.sourceLocation,
+      sourceLocation: b.sourceLocation ?? i18nSourceLocation,
     }
   })
 }
@@ -290,10 +308,9 @@ interface ValidationRow {
 
 const validationRows = computed((): ValidationRow[] => {
   const v = d.value
-  // buttons never have real validation — skip entirely
-  if (!v || v.kind === 'button') return []
+  if (!v || v.kind !== 'input') return []
 
-  const src = v.kind === 'input' ? v.source : v
+  const src = v.source
   if (!src) return []
 
   const rows: ValidationRow[] = []
