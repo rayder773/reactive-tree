@@ -1,5 +1,8 @@
-import { type AsyncNode, createTree, type FileData, fileType, oneOf, required, state, type StateNode, withActions, when } from "../../../../../src";
+import { type AsyncNode, createTree, type FileData, fileType, oneOf, required, state, type StateNode, withActions, withWatch, when } from "../../../../../src";
 import { uploadedFileId } from './wizard.async'
+import { columnSuggestions, type ColumnSuggestion } from './column-suggestions'
+
+export const NOT_MAPPED = 'NOT_MAPPED' as const
 
 export const wizard = createTree({
 	currentStep: withActions(
@@ -42,6 +45,40 @@ export const wizard = createTree({
 	}),
 
 	uploadedFileId,
+
+	columnSuggestions,
+
+	mapping: {
+		mpn: withWatch(
+			state<string>(NOT_MAPPED, {
+				label: 'MPN column',
+				checks: [
+					oneOf((root) => [NOT_MAPPED, ...(root.columnSuggestions.value?.map((c: ColumnSuggestion) => c.name) ?? [])]),
+				],
+			}),
+			[(root) => root.columnSuggestions.value?.find((c: ColumnSuggestion) => c.mappedTo === 'mpn')?.name],
+		),
+
+		manufacturer: withWatch(
+			state<string>(NOT_MAPPED, {
+				label: 'Manufacturer column',
+				checks: [
+					oneOf((root) => [NOT_MAPPED, ...(root.columnSuggestions.value?.map((c: ColumnSuggestion) => c.name) ?? [])]),
+				],
+			}),
+			[(root) => root.columnSuggestions.value?.find((c: ColumnSuggestion) => c.mappedTo === 'manufacturer')?.name],
+		),
+
+		ipn: withWatch(
+			state<string>(NOT_MAPPED, {
+				label: 'IPN column',
+				checks: [
+					oneOf((root) => [NOT_MAPPED, ...(root.columnSuggestions.value?.map((c: ColumnSuggestion) => c.name) ?? [])]),
+				],
+			}),
+			[(root) => root.columnSuggestions.value?.find((c: ColumnSuggestion) => c.mappedTo === 'ipn')?.name],
+		),
+	},
 })
 
 type WizardSelf = {

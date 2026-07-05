@@ -6,12 +6,12 @@ export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'
 export { record } from './nodes/record'
-export { state, withActions } from './nodes/state'
+export { state, withActions, withWatch } from './nodes/state'
 export { switchNode } from './nodes/switchNode'
 export { when } from './nodes/when'
 
-export { button, createDisplayTree, createI18nPlugin, form, input } from './display'
-export type { ButtonConfig, ButtonGetter, ButtonNode, DisplayTree, DisplayTreeOptions, FormConfig, FormGetter, FormNode, I18nPlugin, InputConfig, InputGetter, InputNode } from './display'
+export { button, createDisplayTree, createI18nPlugin, form, input, table, text } from './display'
+export type { ButtonConfig, ButtonGetter, ButtonNode, DisplayTree, DisplayTreeOptions, DomBinding, FormConfig, FormGetter, FormNode, I18nPlugin, InputConfig, InputGetter, InputNode, TableConfig, TableColumn, TableNode, TableRow, TextGetter } from './display'
 
 export {
   check,

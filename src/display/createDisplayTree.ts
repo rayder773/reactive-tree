@@ -1,6 +1,8 @@
 import { effectScope } from 'vue'
 import { createDebugStore } from '../debug'
+import type { DebugStore } from '../debug'
 import { section } from '../nodes/section'
+import { emptyDiagnosticsRefs } from '../nodes/utils'
 import type { SectionChildren, TreeNode } from '../types'
 
 export type DisplayTreeOptions<TPlugins extends Record<string, object>> = {
@@ -9,6 +11,41 @@ export type DisplayTreeOptions<TPlugins extends Record<string, object>> = {
 
 export type DisplayTree<TChildren extends SectionChildren, TPlugins extends Record<string, object>> =
   TreeNode<TChildren> & { plugins: TPlugins }
+
+function isI18nPlugin(plugin: object): plugin is { t: { value: unknown }; locale: unknown } {
+  return 't' in plugin && 'locale' in plugin
+}
+
+function withTrackedPlugins<TPlugins extends Record<string, object>>(
+  plugins: TPlugins,
+  debug: DebugStore,
+): TPlugins {
+  const result: any = {}
+  for (const [key, plugin] of Object.entries(plugins)) {
+    if (!isI18nPlugin(plugin)) {
+      result[key] = plugin
+      continue
+    }
+
+    const tNodeId = `plugins.${key}.t`
+    const tNode: any = { kind: 'computed' }
+    debug.registerNode(tNode, { id: tNodeId, path: tNodeId, kind: 'computed', label: `${key}.t`, active: true })
+    Object.assign(tNode, emptyDiagnosticsRefs)
+
+    const originalT = plugin.t
+    const trackedT = Object.create(originalT as object)
+    Object.defineProperty(trackedT, 'value', {
+      enumerable: true,
+      get() {
+        debug.trackRead({ targetId: tNodeId, targetProp: 'value' })
+        return (originalT as any).value
+      },
+    })
+
+    result[key] = { ...plugin, t: trackedT }
+  }
+  return result as TPlugins
+}
 
 export function createDisplayTree<
   TData,
@@ -31,12 +68,10 @@ export function createDisplayTree<
     active: true,
   })
 
-  // Wrap dataTree in a proxy that tracks reads into the display debug store.
-  // Since data tree node IDs are not registered in displayDebug, these reads
-  // will appear in displayDebug.crossEdges automatically.
   const dataProxy = displayDebug.createSelfProxy(dataTree as any)
 
-  const children = factory(plugins)
+  const trackedPlugins = withTrackedPlugins(plugins, displayDebug)
+  const children = factory(trackedPlugins)
 
   const context = {
     root,

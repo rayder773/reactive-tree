@@ -86,6 +86,11 @@ const TAG_LABEL: Record<NonNullable<EntityTag>, string> = {
 
 // ── dom bindings ─────────────────────────────────────────────────────────────
 
+interface WatcherEntry {
+  label: string
+  sourceLocation?: { file: string; line: number }
+}
+
 interface DomBinding {
   prop: string
   value: unknown
@@ -94,6 +99,7 @@ interface DomBinding {
   editable: boolean
   deps?: FlatDep[]
   triggers?: string[]
+  watchers?: WatcherEntry[]
   sourceLocation?: { file: string; line: number }
 }
 
@@ -104,12 +110,27 @@ const domBindings = computed((): DomBinding[] => {
 })
 
 function computeDomBindings(v: any): DomBinding[] {
+  const rawBindings: any[] = v.__domBindings ?? []
+  if (!rawBindings.length) return []
 
-  if (v.kind === 'input') {
-    const src = v.source ?? null
-    const sourceId: string | undefined = (src as any)?.__debug?.id
-    const rawDataRoot = (v.dataRoot as any)?.__rawNode
-    const dataStore: DebugStore | undefined = rawDataRoot?.debug
+  const displayStore: DebugStore | undefined = v.__displayDebug
+  const rawDataRoot = (v.dataRoot as any)?.__rawNode
+  const dataStore: DebugStore | undefined = rawDataRoot?.debug
+
+  return rawBindings.map(b => {
+    const sourceNode = b.sourceNode ?? null
+    const sourceId: string | undefined = sourceNode?.__debug?.id
+    const depsReaderId: string | undefined = sourceId ?? b.readerNodeId
+
+    const deps: FlatDep[] = depsReaderId && displayStore
+      ? buildFlatDeps(displayStore, depsReaderId)
+      : []
+
+    let tag: EntityTag = b.tag as EntityTag
+    if (tag === 'display' && deps.some((dep: FlatDep) => dep.label.startsWith('t.'))) {
+      tag = 'i18n'
+    }
+
     const triggers = dataStore && sourceId
       ? [...new Set(
           dataStore.edges.value
@@ -120,44 +141,34 @@ function computeDomBindings(v: any): DomBinding[] {
             }),
         )]
       : []
-    return [{
-      prop: 'value',
-      value: src?.value,
-      sourceNode: src,
-      tag: nodeTag(src),
-      editable: typeof src?.set === 'function',
-      triggers: triggers.length ? triggers : undefined,
-      sourceLocation: (src as any)?.__debug?.sourceLocation,
-    }]
-  }
 
-  if (v.kind === 'button') {
-    const store: DebugStore | undefined = v.__displayDebug
-    const disabledDeps = store && v.disabled?.__debug?.id
-      ? buildFlatDeps(store, v.disabled.__debug.id)
+    const watchers: WatcherEntry[] = dataStore && sourceId
+      ? [...new Map(
+          dataStore.edges.value
+            .filter(e => e.readerId === sourceId && e.reason === 'watch')
+            .map(e => {
+              const nodeInfo = dataStore.nodes.value.find(n => n.id === e.targetId)
+              const label = nodeInfo?.label ?? e.targetId.split('.').pop() ?? e.targetId
+              return [label, { label, sourceLocation: nodeInfo?.sourceLocation }] as [string, WatcherEntry]
+            }),
+        ).values()]
       : []
-    return [
-      {
-        prop: 'textContent',
-        value: v.label ?? 'Submit',
-        sourceNode: null,
-        tag: v.labelReactive ? 'i18n' as EntityTag : null,
-        editable: false,
-        sourceLocation: v.labelReactive ? (v as any).i18nSourceLocation : undefined,
-      },
-      {
-        prop: 'disabled',
-        value: v.disabled?.value ?? false,
-        sourceNode: v.disabled ?? null,
-        tag: nodeTag(v.disabled) ?? 'display',
-        editable: false,
-        deps: disabledDeps,
-        sourceLocation: (v.disabled as any)?.__debug?.sourceLocation,
-      },
-    ]
-  }
 
-  return []
+    // sourceNode is null for computed cells — fall back to the node's own value
+    const value = sourceNode !== null ? sourceNode.value : v.value
+
+    return {
+      prop: b.prop,
+      value,
+      sourceNode,
+      tag,
+      editable: b.editable,
+      deps: deps.length ? deps : undefined,
+      triggers: triggers.length ? triggers : undefined,
+      watchers: watchers.length ? watchers : undefined,
+      sourceLocation: b.sourceLocation,
+    }
+  })
 }
 
 // ── control kind for editable value ──────────────────────────────────────────
@@ -323,6 +334,7 @@ function onToggleUiRow(row: StateRow, checked: boolean) {
 
 function nodeLabel(v: any): string {
   if (v?.kind === 'input') return v.source?.label ?? v.source?.id ?? 'Input'
+  if (v?.kind === 'button') return v.text ?? v.id ?? 'Button'
   return v?.label ?? v?.id ?? 'Node'
 }
 </script>
@@ -428,6 +440,18 @@ function nodeLabel(v: any): string {
           </div>
           <div v-if="binding.triggers?.length" class="inspect-triggers">
             → {{ binding.triggers.join(', ') }}
+          </div>
+          <div v-if="binding.watchers?.length" class="inspect-watchers">
+            <span v-for="w in binding.watchers" :key="w.label" class="watcher-entry">
+              ⟳ {{ w.label }}
+              <a
+                v-if="w.sourceLocation"
+                class="source-link"
+                href="#"
+                @click.prevent="openInEditor(w.sourceLocation.file, w.sourceLocation.line)"
+                title="Open in editor"
+              >↗</a>
+            </span>
           </div>
         </div>
       </div>
@@ -613,6 +637,21 @@ function nodeLabel(v: any): string {
   font-size: 10px;
   color: #fab387;
   padding: 1px 0 3px 82px;
+}
+
+.inspect-watchers {
+  font-size: 10px;
+  color: #a6e3a1;
+  padding: 1px 0 3px 82px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.watcher-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 /* invoke button */

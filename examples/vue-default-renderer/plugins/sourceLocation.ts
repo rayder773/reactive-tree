@@ -158,11 +158,20 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
       if (!firstLocale || firstLocale.value?.type !== 'ObjectExpression') return
 
       const keyLines: Record<string, { file: string; line: number }> = {}
-      for (const prop of firstLocale.value.properties) {
-        if (prop.type !== 'ObjectProperty') continue
-        const k = prop.key.type === 'Identifier' ? prop.key.name : prop.key.value
-        if (k && prop.loc) keyLines[k] = { file: absFile, line: prop.loc.start.line }
+      function collectKeyLines(properties: any[], prefix: string) {
+        for (const prop of properties) {
+          if (prop.type !== 'ObjectProperty') continue
+          const k = prop.key.type === 'Identifier' ? prop.key.name : prop.key.value
+          if (!k || !prop.loc) continue
+          const path = prefix ? `${prefix}.${k}` : k
+          if (prop.value?.type === 'ObjectExpression') {
+            collectKeyLines(prop.value.properties, path)
+          } else {
+            keyLines[path] = { file: absFile, line: prop.loc.start.line }
+          }
+        }
       }
+      collectKeyLines(firstLocale.value.properties, '')
 
       const keyLinesJson = JSON.stringify(keyLines)
       ms.appendLeft(node.start!, 'Object.assign(')
@@ -170,37 +179,44 @@ function transformTs(code: string, id: string): { code: string; map: any } | nul
     })
   }
 
-  // ── Pass 2b: wrap label functions with dynamic __i18nSource getter ───────────
-  // Find: ObjectProperty { label: () => PLUGIN.t.value.KEY }
-  // Wrap: Object.assign(() => PLUGIN.t.value.KEY, { get __i18nSource() { return PLUGIN.__keyLines?.['KEY'] } })
-  // PLUGIN is extracted from the AST — works regardless of which file defines the plugin.
+  // ── Pass 2b: wrap text getter functions with dynamic __i18nSource getter ──────
+  // Find: ObjectProperty { label|header: () => PLUGIN.t.value[.NS]*.KEY }
+  // Wrap: Object.assign(() => ..., { get __i18nSource() { return PLUGIN.__keyLines?.['NS.KEY'] } })
+  // Handles arbitrary nesting depth, e.g. i18n.t.value.mapping.field → key 'mapping.field'.
 
   if (hasI18nLabelPattern) {
+    // Traverse PLUGIN.t.value[.NS]*.KEY → { pluginRef, keyPath } or null.
+    // Collects all parts right-to-left, then checks the root is IDENTIFIER.t.value.
+    function extractI18nRef(expr: any): { pluginRef: string; keyPath: string } | null {
+      const parts: string[] = []
+      let cur = expr
+      while (cur.type === 'MemberExpression' && !cur.computed) {
+        if (cur.property.type !== 'Identifier') return null
+        parts.unshift(cur.property.name)
+        cur = cur.object
+      }
+      // After the loop cur is the root Identifier (plugin name).
+      // parts = ['t', 'value', ...keySegments]
+      if (cur.type !== 'Identifier') return null
+      if (parts.length < 3 || parts[0] !== 't' || parts[1] !== 'value') return null
+      return { pluginRef: cur.name, keyPath: parts.slice(2).join('.') }
+    }
+
+    const TRACKED_TEXT_PROPS = new Set(['label', 'header', 'text'])
+
     walkAst(ast.program, (node) => {
       if (node.type !== 'ObjectProperty') return
       const propKey = node.key.type === 'Identifier' ? node.key.name : node.key.value
-      if (propKey !== 'label') return
+      if (!TRACKED_TEXT_PROPS.has(propKey)) return
 
       const fn = node.value
       if (fn.type !== 'ArrowFunctionExpression') return
 
-      // Match expression body of form PLUGIN.t.value.KEY (all non-computed)
-      const body = fn.body
-      if (body.type !== 'MemberExpression' || body.computed) return
-      if (body.object?.type !== 'MemberExpression') return
-      if (body.object.property?.type !== 'Identifier') return
-      if (body.object.property.name !== 'value') return
-      if (body.object.object?.type !== 'MemberExpression') return
-      if (body.object.object.property?.type !== 'Identifier') return
-      if (body.object.object.property.name !== 't') return
-      if (body.object.object.object?.type !== 'Identifier') return
-      if (body.property?.type !== 'Identifier') return
-
-      const i18nKey: string = body.property.name
-      const pluginRef: string = body.object.object.object.name
+      const ref = extractI18nRef(fn.body)
+      if (!ref) return
 
       ms.appendLeft(fn.start!, 'Object.assign(')
-      ms.appendLeft(fn.end!, `, { get __i18nSource() { return ${pluginRef}.__keyLines?.['${i18nKey}'] } })`)
+      ms.appendLeft(fn.end!, `, { get __i18nSource() { return ${ref.pluginRef}.__keyLines?.['${ref.keyPath}'] } })`)
     })
   }
 

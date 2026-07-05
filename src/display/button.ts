@@ -1,13 +1,14 @@
 import { computed as vueComputed } from 'vue'
 import { childPath, emptyDiagnosticsRefs, registerDebugNode } from '../nodes/utils'
 import type { ActionNode, AnyNode, BuildContext, NodeSpec } from '../types'
+import type { DomBinding } from './domBinding'
 
 export type ButtonGetter<T, TRoot = any> = (root: TRoot) => T
 
 export interface ButtonConfig<TRoot = any> {
   disabled?: ButtonGetter<boolean, TRoot>
   display?: ButtonGetter<boolean, TRoot>
-  label?: string | (() => string)
+  text?: string | (() => string)
   handlers?: Record<string, ActionNode>
 }
 
@@ -15,8 +16,8 @@ export interface ButtonNode extends AnyNode {
   readonly kind: 'button'
   readonly disabled: { value: boolean }
   readonly display: { value: boolean }
-  readonly label: string | undefined
-  readonly labelReactive: boolean
+  readonly text: string | undefined
+  readonly textReactive: boolean
   readonly domProp: 'textContent'
   readonly handlers: Record<string, ActionNode>
 }
@@ -55,22 +56,24 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
         handlers: config.handlers ?? {},
       }
 
-      if (typeof config.label === 'function') {
-        const labelGetter = config.label
-        const path = childPath(context.path, 'label')
-        const labelRef = vueComputed(() =>
+      let textReaderNodeId: string | undefined
+      if (typeof config.text === 'function') {
+        const textGetter = config.text
+        const path = childPath(context.path, 'text')
+        textReaderNodeId = path
+        const textRef = vueComputed(() =>
           context.debug.runWithReader(
             { readerId: path, reason: 'computed' },
-            () => labelGetter(),
+            () => textGetter(),
           ),
         )
-        Object.defineProperty(node, 'label', { get() { return labelRef.value }, enumerable: true })
-        node.labelReactive = true
-        const i18nSource = (config.label as any).__i18nSource
+        Object.defineProperty(node, 'text', { get() { return textRef.value }, enumerable: true })
+        node.textReactive = true
+        const i18nSource = (config.text as any).__i18nSource
         if (i18nSource) node.i18nSourceLocation = i18nSource
       } else {
-        node.label = config.label
-        node.labelReactive = false
+        node.text = config.text
+        node.textReactive = false
       }
 
       Object.defineProperty(node, '__displayDebug', { value: context.debug, enumerable: false })
@@ -80,6 +83,27 @@ export function button<TRoot = any>(config: ButtonConfig<TRoot> = {}): NodeSpec<
 
       node.disabled = buildComputedChild(context, 'disabled', config.disabled as ButtonGetter<boolean>, false)
       node.display = buildComputedChild(context, 'display', config.display as ButtonGetter<boolean>, true)
+
+      const textNode = { get value() { return node.text ?? 'Submit' } }
+      const domBindings: DomBinding[] = [
+        {
+          prop: 'textContent',
+          sourceNode: textNode,
+          readerNodeId: textReaderNodeId,
+          tag: node.textReactive ? 'i18n' : null,
+          editable: false,
+          sourceLocation: node.textReactive ? (node as any).i18nSourceLocation : undefined,
+        },
+        {
+          prop: 'disabled',
+          sourceNode: node.disabled,
+          readerNodeId: (node.disabled as any)?.__debug?.id,
+          tag: 'display',
+          editable: false,
+          sourceLocation: (node.disabled as any)?.__debug?.sourceLocation,
+        },
+      ]
+      Object.defineProperty(node, '__domBindings', { enumerable: false, value: domBindings })
 
       context.registerNode?.(node)
 

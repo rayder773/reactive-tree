@@ -13,6 +13,14 @@ export const i18nPlugin = createI18nPlugin({
 				createNew: 'Create new',
 				replaceExisting: 'Replace existing',
 			},
+			mapping: {
+				field: 'Field',
+				csvColumn: 'CSV Column',
+				mpn: 'MPN',
+				manufacturer: 'Manufacturer',
+				ipn: 'IPN',
+				notMapped: 'Not mapped',
+			},
 		},
 		uk: {
 			submit: 'Завантажити',
@@ -23,6 +31,14 @@ export const i18nPlugin = createI18nPlugin({
 			approvedAction: {
 				createNew: 'Створити новий',
 				replaceExisting: 'Замінити існуючий',
+			},
+			mapping: {
+				field: 'Поле',
+				csvColumn: 'Колонка CSV',
+				mpn: 'MPN',
+				manufacturer: 'Виробник',
+				ipn: 'IPN',
+				notMapped: 'Не змаповано',
 			},
 		},
 	},

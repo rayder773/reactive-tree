@@ -135,6 +135,23 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
 
       inputNodeRef.current = node
 
+      Object.defineProperty(node, '__domBindings', {
+        enumerable: false,
+        configurable: true,
+        get() {
+          const src = node.source ?? null
+          const kind: string | undefined = src?.kind
+          const tag = kind === 'state' ? 'state' : kind === 'async' ? 'async' : kind === 'computed' ? 'computed' : null
+          return [{
+            prop: 'value',
+            sourceNode: src,
+            tag,
+            editable: typeof src?.set === 'function',
+            sourceLocation: (src as any)?.__debug?.sourceLocation,
+          }]
+        },
+      })
+
       context.registerNode?.(node)
 
       return node as InputNode

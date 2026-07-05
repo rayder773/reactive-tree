@@ -14,7 +14,7 @@ defineProps<{
     :disabled="node.disabled.value"
     @click="node.handlers?.click?.call()"
   >
-    {{ node.label ?? 'Submit' }}
+    {{ node.text ?? 'Submit' }}
   </button>
 </template>
 

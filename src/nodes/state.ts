@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { ref, type Ref, watchEffect } from 'vue'
 import type { ActionNode, BuildContext, NodeOptions, NodeSpec, StateActions, StateNode } from '../types'
 import { activeChecks, diagnosticsFor, diagnosticsRefs, registerDebugNode } from './utils'
 import { normalizeCheckResult } from '../checks/check'
@@ -53,6 +53,29 @@ export function state<T>(
 
       context.registerNode?.(node)
 
+      return node
+    },
+  }
+}
+
+export function withWatch<TNode extends StateNode<any>>(
+  stateSpec: NodeSpec<TNode>,
+  getters: Array<(root: any) => TNode['value'] | null | undefined>,
+): NodeSpec<TNode> {
+  return {
+    build(context: BuildContext): TNode {
+      const node = stateSpec.build(context)
+      for (const getter of getters) {
+        watchEffect(() => {
+          const val = context.debug.runWithReader(
+            { readerId: node.__debug.id, reason: 'watch' },
+            () => getter(context.self),
+          )
+          if (val != null) {
+            node.set(val)
+          }
+        })
+      }
       return node
     },
   }

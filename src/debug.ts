@@ -23,6 +23,7 @@ export type DependencyReason =
   | 'record.from'
   | 'check'
   | 'async.trigger'
+  | 'watch'
 
 export interface SourceLocation {
   file: string
@@ -76,6 +77,7 @@ export interface DebugStore {
   readsOf(nodeOrId: string | AnyNode): string[]
   readBy(nodeOrId: string | AnyNode): string[]
   getEdges(): DependencyEdge[]
+  getEdgesRaw(): DependencyEdge[]
   getNodes(): DebugNodeInfo[]
   getDependencyGraph(): DependencyGraph
   createSelfProxy(root: AnyNode): any
@@ -150,7 +152,7 @@ export function createDebugStore(): DebugStore {
       runId = nextRunId
 
       for (const [key, edge] of Array.from(toRaw(edgesByKey).entries())) {
-        if (edge.readerId === input.readerId) {
+        if (edge.readerId === input.readerId && edge.reason === input.reason) {
           edgesByKey.delete(key)
         }
       }
@@ -185,8 +187,26 @@ export function createDebugStore(): DebugStore {
     },
 
     runWithReader(input, fn) {
-      store.startReader(input)
+      if (input.reason === 'watch') {
+        // For watch edges: don't clear first — add new edges alongside old ones,
+        // then remove only the stale ones after fn() completes. This prevents
+        // the overlay from seeing an intermediate state where the edge is missing.
+        const nextRunId = runId + 1
+        runId = nextRunId
+        activeReaderStack.push({ readerId: input.readerId, reason: input.reason, runId: nextRunId })
+        try {
+          return fn()
+        } finally {
+          activeReaderStack.pop()
+          for (const [key, edge] of Array.from(toRaw(edgesByKey).entries())) {
+            if (edge.readerId === input.readerId && edge.createdAtRunId !== nextRunId) {
+              edgesByKey.delete(key)
+            }
+          }
+        }
+      }
 
+      store.startReader(input)
       try {
         return fn()
       } finally {
@@ -214,6 +234,10 @@ export function createDebugStore(): DebugStore {
 
     getEdges() {
       return store.edges.value
+    },
+
+    getEdgesRaw() {
+      return Array.from(toRaw(edgesByKey).values())
     },
 
     getNodes() {
