@@ -62,11 +62,7 @@ export const wizard = createTree({
 		checks: [required(), fileType(['csv'])],
 	}),
 
-	uploadedFileId,
-
-	columnSuggestions,
-
-	mapping: {
+	generalMapping: {
 		mpn: withWatch(
 			state<string>(NOT_MAPPED, {
 				label: 'MPN column',
@@ -97,4 +93,12 @@ export const wizard = createTree({
 			[(root: Wizard) => root.columnSuggestions.value?.find(c => c.mappedTo === 'ipn')?.name],
 		),
 	},
+	customFormFields: when(
+		(self: Wizard) => self.uploadType.value === 'customPartData',
+		() => ({})
+	),
+
+	//Network requests
+	uploadedFileId,
+	columnSuggestions,
 })

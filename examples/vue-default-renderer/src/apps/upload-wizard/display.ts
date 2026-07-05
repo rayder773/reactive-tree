@@ -61,8 +61,8 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
 
   mappingForm: form({
     mpn: input({
-      source: () => wizard.mapping.mpn,
-      options: () => valuesFrom<string>(wizard.mapping.mpn, wizard).map(v => ({
+      source: () => wizard.generalMapping.mpn,
+      options: () => valuesFrom<string>(wizard.generalMapping.mpn, wizard).map(v => ({
         value: v,
         label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
       })),
@@ -70,8 +70,8 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
     }),
 
     manufacturer: input({
-      source: () => wizard.mapping.manufacturer,
-      options: () => valuesFrom<string>(wizard.mapping.manufacturer, wizard).map(v => ({
+      source: () => wizard.generalMapping.manufacturer,
+      options: () => valuesFrom<string>(wizard.generalMapping.manufacturer, wizard).map(v => ({
         value: v,
         label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
       })),
@@ -79,8 +79,8 @@ export const wizardDisplay = createDisplayTree(wizard, ({ i18n }) => ({
     }),
 
     ipn: input({
-      source: () => wizard.mapping.ipn,
-      options: () => valuesFrom<string>(wizard.mapping.ipn, wizard).map(v => ({
+      source: () => wizard.generalMapping.ipn,
+      options: () => valuesFrom<string>(wizard.generalMapping.ipn, wizard).map(v => ({
         value: v,
         label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
       })),
