@@ -11,6 +11,7 @@ import {
 	button,
 	createDisplayTree,
 	disposeOnHmr,
+	dynamicRows,
 	form,
 	input,
 	record,
@@ -46,24 +47,24 @@ type WizardDisplay = {
 function createWizardDisplay() {
 	return createDisplayTree(
 		wizard,
-		({ i18n }) => ({
+		({ i18n }, data) => ({
 			uploadForm: form({
 				uploadType: input({
-					source: () => wizard.uploadType,
+					source: () => data.uploadType,
 					options: () =>
-						valuesFrom<UploadType>(wizard.uploadType).map((v) => ({
+						valuesFrom<UploadType>(data.uploadType).map((v) => ({
 							value: v,
 							label: i18n.t.value.uploadType[v],
 						})),
 				}),
 
 				approvedAction: when(
-					() => wizard.approvedAction !== undefined,
+					() => data.approvedAction !== undefined,
 					() =>
 						input({
-							source: () => wizard.approvedAction,
+							source: () => data.approvedAction,
 							options: () =>
-								valuesFrom<ApprovedAction>(wizard.approvedAction!).map((v) => ({
+								valuesFrom<ApprovedAction>(data.approvedAction!).map((v) => ({
 									value: v,
 									label: i18n.t.value.approvedAction[v],
 								})),
@@ -71,7 +72,7 @@ function createWizardDisplay() {
 				),
 
 				file: input({
-					source: () => wizard.file,
+					source: () => data.file,
 				}),
 			}),
 
@@ -87,73 +88,66 @@ function createWizardDisplay() {
 						text: text(() => i18n.t.value.mapping.manufacturer),
 					},
 					{ id: 'ipn', text: text(() => i18n.t.value.mapping.ipn) },
-					...Object.keys(
-						wizard.customFormFields?.items.value ?? {},
-					).map((name) => ({ id: name, text: name })),
+					...dynamicRows(
+						() => Object.keys(data.customFormFields?.items.value ?? {}),
+						(name) => ({ id: name, text: text(() => name) }),
+					),
 				],
 			}),
 
 			mappingForm: form({
 				mpn: input({
-					source: () => wizard.generalMapping.mpn,
+					source: () => data.generalMapping.mpn,
 					options: () =>
-						valuesFrom<string>(wizard.generalMapping.mpn, wizard).map((v) => ({
+						valuesFrom<string>(data.generalMapping.mpn, data).map((v) => ({
 							value: v,
 							label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
 						})),
-					disabled: () => wizard.columnSuggestions.status === 'loading',
+					disabled: () => data.columnSuggestions.status === 'loading',
 				}),
 
 				manufacturer: input({
-					source: () => wizard.generalMapping.manufacturer,
+					source: () => data.generalMapping.manufacturer,
 					options: () =>
-						valuesFrom<string>(wizard.generalMapping.manufacturer, wizard).map(
+						valuesFrom<string>(data.generalMapping.manufacturer, data).map(
 							(v) => ({
 								value: v,
 								label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
 							}),
 						),
-					disabled: () => wizard.columnSuggestions.status === 'loading',
+					disabled: () => data.columnSuggestions.status === 'loading',
 				}),
 
 				ipn: input({
-					source: () => wizard.generalMapping.ipn,
+					source: () => data.generalMapping.ipn,
 					options: () =>
-						valuesFrom<string>(wizard.generalMapping.ipn, wizard).map((v) => ({
+						valuesFrom<string>(data.generalMapping.ipn, data).map((v) => ({
 							value: v,
 							label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
 						})),
-					disabled: () => wizard.columnSuggestions.status === 'loading',
+					disabled: () => data.columnSuggestions.status === 'loading',
 				}),
 
 				customFields: when(
-					() => wizard.uploadType.value === 'customPartData',
+					() => data.uploadType.value === 'customPartData',
 					() =>
-						record<
-							[string, StateNode<string>],
-							string,
-							InputNode
-						>({
+						record<[string, StateNode<string>], string, InputNode>({
 							from: () =>
 								Object.entries(
-									(
-										wizard.customFormFields as RecordNode<StateNode<string>>
-									).items.value,
+									(data.customFormFields as RecordNode<StateNode<string>>).items
+										.value,
 								),
 							key: ([name]) => name,
 							item: ([, stateNode]) =>
 								input({
 									source: () => stateNode,
 									options: () =>
-										valuesFrom<string>(stateNode, wizard).map((v) => ({
+										valuesFrom<string>(stateNode, data).map((v) => ({
 											value: v,
 											label:
-												v === NOT_MAPPED
-													? i18n.t.value.mapping.notMapped
-													: v,
+												v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
 										})),
-									disabled: () =>
-										wizard.columnSuggestions.status === 'loading',
+									disabled: () => data.columnSuggestions.status === 'loading',
 								}),
 						}),
 				),
@@ -163,7 +157,7 @@ function createWizardDisplay() {
 				text: text(() => i18n.t.value.submit),
 				disabled: (root) => root.uploadForm.invalid.value,
 				handlers: {
-					click: wizard.currentStep.goNext,
+					click: data.currentStep.goNext,
 				},
 			}),
 		}),

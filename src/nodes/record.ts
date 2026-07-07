@@ -71,7 +71,7 @@ export function record<
 				},
 			} as unknown as RecordNode<TItemNode, TKey>
 
-			registerDebugNode(context, node, 'record')
+			registerDebugNode(context, node, 'record', true, (options as any).__source)
 
 			const ensureProperty = (key: string) => {
 				if (Object.hasOwn(node, key)) {

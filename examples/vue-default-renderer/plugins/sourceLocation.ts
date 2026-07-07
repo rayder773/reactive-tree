@@ -8,6 +8,7 @@ const FACTORY_OPTIONS_ARG: Record<string, number> = {
 	input: 0,
 	button: 0,
 	form: 1,
+	record: 0,
 }
 
 const TRACKED_FACTORIES = new Set(Object.keys(FACTORY_OPTIONS_ARG))
@@ -114,6 +115,7 @@ function transformTs(
 	const localToFactory = new Map<string, string>()
 	let i18nPluginLocalName: string | null = null
 	let defineAsyncLocalName: string | null = null
+	const dynamicRowsLocalNames = new Set<string>()
 
 	for (const node of ast.program.body) {
 		if (node.type !== 'ImportDeclaration') continue
@@ -128,6 +130,7 @@ function transformTs(
 				localToFactory.set(spec.local.name, imported)
 			if (imported === 'createI18nPlugin') i18nPluginLocalName = spec.local.name
 			if (imported === 'defineAsync') defineAsyncLocalName = spec.local.name
+			if (imported === 'dynamicRows') dynamicRowsLocalNames.add(spec.local.name)
 		}
 	}
 
@@ -136,7 +139,8 @@ function transformTs(
 		localToFactory.size === 0 &&
 		!i18nPluginLocalName &&
 		!hasI18nLabelPattern &&
-		!defineAsyncLocalName
+		!defineAsyncLocalName &&
+		dynamicRowsLocalNames.size === 0
 	)
 		return null
 
@@ -283,6 +287,31 @@ function transformTs(
 		ms.appendLeft(fn.start!, 'Object.assign(')
 		ms.appendLeft(fn.end!, `, { ${extras.join(', ')} })`)
 	})
+
+	// ── Pass 2c: annotate dynamicRows source and mapper callbacks ───────────────
+
+	if (dynamicRowsLocalNames.size > 0) {
+		walkAst(ast.program, (node) => {
+			if (node.type !== 'CallExpression') return
+			if (node.callee.type !== 'Identifier') return
+			if (!dynamicRowsLocalNames.has(node.callee.name)) return
+
+			for (const arg of node.arguments.slice(0, 2)) {
+				if (
+					arg.type !== 'ArrowFunctionExpression' &&
+					arg.type !== 'FunctionExpression'
+				) {
+					continue
+				}
+
+				const line: number = arg.loc!.start.line
+				const col: number = arg.loc!.start.column + 1
+				const sourceProp = `__source: { file: ${JSON.stringify(absFile)}, line: ${line}, col: ${col} }`
+				ms.appendLeft(arg.start!, 'Object.assign(')
+				ms.appendLeft(arg.end!, `, { ${sourceProp} })`)
+			}
+		})
+	}
 
 	// ── Pass 3: inject import.meta.env into defineAsync calls ───────────────────
 	// defineAsync lives in library code outside Vite's project root, so

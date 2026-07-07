@@ -13,19 +13,25 @@ interface FlatDep {
 	label: string
 	depth: number
 	isCross: boolean
+	tag: EntityTag
 	sourceLocation?: { file: string; line: number }
 }
 
 function buildFlatDeps(
 	store: DebugStore,
 	readerId: string,
+	crossStore?: DebugStore,
 	depth = 0,
 	visited = new Set<string>(),
 ): FlatDep[] {
-	if (depth > 5 || visited.has(readerId)) return []
-	visited.add(readerId)
+	const visitKey = `${store === crossStore ? 'cross' : 'primary'}:${readerId}`
+	if (depth > 5 || visited.has(visitKey)) return []
+	visited.add(visitKey)
 
 	const nodeMap = new Map(store.nodes.value.map((n) => [n.id, n]))
+	const crossNodeMap = crossStore
+		? new Map(crossStore.nodes.value.map((n) => [n.id, n]))
+		: undefined
 	const depStrings = [...new Set(store.readsOf(readerId))]
 	const result: FlatDep[] = []
 
@@ -34,19 +40,33 @@ function buildFlatDeps(
 		const targetId = lastDot >= 0 ? depStr.slice(0, lastDot) : depStr
 		const targetProp = lastDot >= 0 ? depStr.slice(lastDot + 1) : depStr
 		const isCross = !nodeMap.has(targetId)
+		const targetStore = nodeMap.has(targetId)
+			? store
+			: crossNodeMap?.has(targetId)
+				? crossStore
+				: undefined
 		const nodeName = targetId.split('.').pop() ?? targetId
 		// hide `.diagnostics` — it's an internal delegation detail, node name alone is enough
 		const label =
 			targetProp === 'diagnostics' ? nodeName : `${nodeName}.${targetProp}`
-		const nodeInfo = nodeMap.get(targetId)
+		const nodeInfo = nodeMap.get(targetId) ?? crossNodeMap?.get(targetId)
 		const sourceLocation = nodeInfo?.sourceLocation
+		const tag = tagFromKind(nodeInfo?.kind)
 
-		result.push({ label, depth, isCross, sourceLocation })
+		result.push({ label, depth, isCross, tag, sourceLocation })
 
-		// stop recursion at cross-tree boundaries and at .diagnostics edges
-		// (diagnostics delegation is plumbing, not meaningful to the user)
-		if (!isCross && targetProp !== 'diagnostics') {
-			result.push(...buildFlatDeps(store, depStr, depth + 1, new Set(visited)))
+		// Stop at .diagnostics edges; diagnostics delegation is plumbing, not
+		// meaningful to the user.
+		if (targetStore && targetProp !== 'diagnostics') {
+			result.push(
+				...buildFlatDeps(
+					targetStore,
+					targetId,
+					crossStore,
+					depth + 1,
+					new Set(visited),
+				),
+			)
 		}
 	}
 
@@ -103,6 +123,14 @@ function nodeTag(node: any): EntityTag {
 	return null
 }
 
+function tagFromKind(kind: string | undefined): EntityTag {
+	if (kind === 'state') return 'state'
+	if (kind === 'async') return 'async'
+	if (kind === 'action') return 'action'
+	if (kind === 'computed') return 'computed'
+	return null
+}
+
 const TAG_LABEL: Record<NonNullable<EntityTag>, string> = {
 	state: '◆ state',
 	computed: '⟨⟩ computed',
@@ -149,10 +177,13 @@ function computeDomBindings(v: any): DomBinding[] {
 		const sourceNode = b.sourceNode ?? null
 		const sourceId: string | undefined = sourceNode?.__debug?.id
 		const depsReaderId: string | undefined = sourceId ?? b.readerNodeId
+		// sourceNode is null for computed cells; read the value before collecting
+		// dependencies so lazy computed nodes have run their reader once.
+		const value = sourceNode !== null ? sourceNode.value : v.value
 
 		const deps: FlatDep[] =
 			depsReaderId && displayStore
-				? buildFlatDeps(displayStore, depsReaderId)
+				? buildFlatDeps(displayStore, depsReaderId, dataStore)
 				: []
 
 		let tag: EntityTag = b.tag as EntityTag
@@ -206,9 +237,6 @@ function computeDomBindings(v: any): DomBinding[] {
 						).values(),
 					]
 				: []
-
-		// sourceNode is null for computed cells — fall back to the node's own value
-		const value = sourceNode !== null ? sourceNode.value : v.value
 
 		const filteredDeps = tag === 'i18n' ? filterI18nDeps(deps) : deps
 
@@ -502,6 +530,9 @@ function nodeLabel(v: any): string {
               :class="dep.isCross ? 'dep-cross' : ''"
             >
               ← {{ dep.label }}
+              <span v-if="dep.tag" :class="['entity-tag', `tag-${dep.tag}`]">
+                {{ TAG_LABEL[dep.tag] }}
+              </span>
               <a
                 v-if="dep.sourceLocation"
                 class="source-link"

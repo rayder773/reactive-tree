@@ -1,4 +1,5 @@
 import { computed as vueComputed } from 'vue'
+import type { SourceLocation } from '../debug'
 import {
 	childPath,
 	emptyDiagnosticsRefs,
@@ -14,6 +15,11 @@ export interface TableColumn {
 export interface TableRow {
 	id: string
 	text: string | (() => string)
+}
+
+export interface DynamicRowDebug {
+	sourceLocation?: SourceLocation
+	mapperLocation?: SourceLocation
 }
 
 export interface TableConfig {
@@ -38,11 +44,34 @@ function resolveText(v: string | (() => string)): string {
 	return typeof v === 'function' ? v() : v
 }
 
+function dynamicRowDebug(row: TableRow): DynamicRowDebug | undefined {
+	return (row as any).__dynamicRow
+}
+
+export function dynamicRows<T>(
+	items: () => readonly T[],
+	mapper: (item: T, index: number) => TableRow,
+): TableRow[] {
+	const sourceLocation = (items as any).__source as SourceLocation | undefined
+	const mapperLocation = (mapper as any).__source as SourceLocation | undefined
+
+	return items().map((item, index) => {
+		const row = mapper(item, index)
+		Object.defineProperty(row, '__dynamicRow', {
+			enumerable: false,
+			configurable: true,
+			value: { sourceLocation, mapperLocation } satisfies DynamicRowDebug,
+		})
+		return row
+	})
+}
+
 export function table(config: TableConfig): NodeSpec<TableNode> {
 	return {
 		build(context: BuildContext): TableNode {
 			const node: any = { kind: 'table' as const }
 			const tableSource = (config as any).__source
+			node.dataRoot = context.data
 
 			registerDebugNode(context, node, 'table', true, (config as any).__source)
 			Object.defineProperty(node, '__displayDebug', {
@@ -119,6 +148,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
 				)
 				const cellNode: any = {
 					kind: 'computed',
+					dataRoot: context.data,
 					get value() {
 						return cellRef.value
 					},
@@ -161,6 +191,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
 					typeof row.text === 'function'
 						? ((row.text as any).__textSource ?? (row.text as any).__i18nSource)
 						: undefined
+				const rowDebug = dynamicRowDebug(row)
 				const cellRef = vueComputed(() =>
 					context.debug.runWithReader(
 						{ readerId: cellPath, reason: 'computed' },
@@ -170,6 +201,7 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
 				)
 				const cellNode: any = {
 					kind: 'computed',
+					dataRoot: context.data,
 					get value() {
 						return cellRef.value
 					},
@@ -193,7 +225,11 @@ export function table(config: TableConfig): NodeSpec<TableNode> {
 							readerNodeId: cellPath,
 							tag: 'display',
 							editable: false,
-							sourceLocation: textI18nSource ?? tableSource,
+							sourceLocation:
+								textI18nSource ??
+								rowDebug?.mapperLocation ??
+								rowDebug?.sourceLocation ??
+								tableSource,
 						},
 					],
 				})

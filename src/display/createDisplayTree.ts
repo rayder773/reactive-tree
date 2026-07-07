@@ -63,7 +63,7 @@ export function createDisplayTree<
 	TPlugins extends Record<string, object> = Record<never, never>,
 >(
 	dataTree: TData,
-	factory: (plugins: TPlugins) => TChildren,
+	factory: (plugins: TPlugins, data: TData) => TChildren,
 	options?: DisplayTreeOptions<TPlugins>,
 ): DisplayTree<TChildren, TPlugins> {
 	const plugins = (options?.plugins ?? {}) as TPlugins
@@ -81,7 +81,7 @@ export function createDisplayTree<
 	const dataProxy = displayDebug.createSelfProxy(dataTree as any)
 
 	const trackedPlugins = withTrackedPlugins(plugins, displayDebug)
-	const children = factory(trackedPlugins)
+	const children = factory(trackedPlugins, dataProxy)
 
 	const context = {
 		root,

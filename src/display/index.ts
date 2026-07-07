@@ -9,7 +9,13 @@ export type { InputConfig, InputGetter, InputNode } from './input'
 export { input } from './input'
 export type { I18nPlugin } from './plugins/i18n'
 export { createI18nPlugin } from './plugins/i18n'
-export type { TableColumn, TableConfig, TableNode, TableRow } from './table'
-export { table } from './table'
+export type {
+	DynamicRowDebug,
+	TableColumn,
+	TableConfig,
+	TableNode,
+	TableRow,
+} from './table'
+export { dynamicRows, table } from './table'
 export type { TextGetter } from './text'
 export { text } from './text'
