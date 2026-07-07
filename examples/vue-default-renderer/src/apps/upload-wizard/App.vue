@@ -26,6 +26,13 @@
         <template #cell-select-ipn>
           <AppSelect :node="wizardDisplay.mappingForm.ipn" />
         </template>
+        <template
+          v-for="(inputNode, name) in (wizardDisplay.mappingForm.customFields?.items.value ?? {})"
+          :key="name"
+          v-slot:[`cell-select-${name}`]
+        >
+          <AppSelect :node="inputNode" />
+        </template>
       </AppTable>
     </div>
   </div>

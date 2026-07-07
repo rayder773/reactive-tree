@@ -5,6 +5,8 @@ import {
 	fileType,
 	oneOf,
 	preserveTreeSnapshotOnHmr,
+	record,
+	type RecordNode,
 	required,
 	type StateNode,
 	state,
@@ -33,6 +35,7 @@ export type Wizard = {
 		manufacturer: StateNode<string>
 		ipn: StateNode<string>
 	}
+	customFormFields?: RecordNode<StateNode<string>>
 }
 
 function createWizard() {
@@ -131,7 +134,25 @@ function createWizard() {
 		},
 		customFormFields: when(
 			(self: Wizard) => self.uploadType.value === 'customPartData',
-			() => ({}),
+			() =>
+				record<ColumnSuggestion, string, StateNode<string>>({
+					from: (self: Wizard) =>
+						(self.columnSuggestions.value ?? []).filter(
+							(c) => c.mappedTo === null,
+						),
+					key: (c) => c.name,
+					item: (c) =>
+						state<string>(NOT_MAPPED, {
+							label: c.name,
+							checks: [
+								oneOf((root: Wizard) => [
+									NOT_MAPPED,
+									...(root.columnSuggestions.value?.map((col) => col.name) ??
+										[]),
+								]),
+							],
+						}),
+				}),
 		),
 
 		//Network requests
@@ -145,6 +166,5 @@ export const wizard = preserveTreeSnapshotOnHmr(
 	import.meta.hot,
 	{
 		key: 'wizardSnapshot',
-		legacyTreeKey: 'wizard',
 	},
 )

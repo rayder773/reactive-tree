@@ -2,6 +2,9 @@ import type {
 	ButtonNode,
 	FormNode,
 	InputNode,
+	NodeSpec,
+	RecordNode,
+	StateNode,
 	TableNode,
 } from '../../../../../src'
 import {
@@ -10,6 +13,7 @@ import {
 	disposeOnHmr,
 	form,
 	input,
+	record,
 	table,
 	text,
 	valuesFrom,
@@ -34,6 +38,7 @@ type WizardDisplay = {
 		mpn: InputNode
 		manufacturer: InputNode
 		ipn: InputNode
+		customFields: NodeSpec<RecordNode<InputNode>, true>
 	}>
 	submitButton: ButtonNode
 }
@@ -82,6 +87,9 @@ function createWizardDisplay() {
 						text: text(() => i18n.t.value.mapping.manufacturer),
 					},
 					{ id: 'ipn', text: text(() => i18n.t.value.mapping.ipn) },
+					...Object.keys(
+						wizard.customFormFields?.items.value ?? {},
+					).map((name) => ({ id: name, text: name })),
 				],
 			}),
 
@@ -117,6 +125,38 @@ function createWizardDisplay() {
 						})),
 					disabled: () => wizard.columnSuggestions.status === 'loading',
 				}),
+
+				customFields: when(
+					() => wizard.uploadType.value === 'customPartData',
+					() =>
+						record<
+							[string, StateNode<string>],
+							string,
+							InputNode
+						>({
+							from: () =>
+								Object.entries(
+									(
+										wizard.customFormFields as RecordNode<StateNode<string>>
+									).items.value,
+								),
+							key: ([name]) => name,
+							item: ([, stateNode]) =>
+								input({
+									source: () => stateNode,
+									options: () =>
+										valuesFrom<string>(stateNode, wizard).map((v) => ({
+											value: v,
+											label:
+												v === NOT_MAPPED
+													? i18n.t.value.mapping.notMapped
+													: v,
+										})),
+									disabled: () =>
+										wizard.columnSuggestions.status === 'loading',
+								}),
+						}),
+				),
 			}),
 
 			submitButton: button<WizardDisplay>({
