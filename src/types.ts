@@ -64,6 +64,7 @@ export interface BuildContext {
   path: string
   debug: DebugStore
   registerNode?: (node: AnyNode) => void
+  defer?: (fn: () => void) => void
   data?: any
 }
 

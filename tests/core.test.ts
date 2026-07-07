@@ -14,6 +14,7 @@ import {
   state,
   switchNode,
   when,
+  withWatch,
 } from '../src'
 import type { StateNode } from '../src'
 
@@ -78,6 +79,18 @@ describe('reactive tree core', () => {
     expect(tree.doubled.value).toBe(2)
     tree.count.set(4)
     expect(tree.doubled.value).toBe(8)
+  })
+
+  it('withWatch can read a later sibling during tree creation', () => {
+    const tree = createTree({
+      watched: withWatch(
+        state('initial'),
+        [self => self.source.value],
+      ),
+      source: state('ready'),
+    })
+
+    expect(tree.watched.value).toBe('ready')
   })
 
   it('group aggregates value and errors from children', () => {

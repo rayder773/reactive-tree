@@ -65,16 +65,23 @@ export function withWatch<TNode extends StateNode<any>>(
   return {
     build(context: BuildContext): TNode {
       const node = stateSpec.build(context)
-      for (const getter of getters) {
-        watchEffect(() => {
-          const val = context.debug.runWithReader(
-            { readerId: node.__debug.id, reason: 'watch' },
-            () => getter(context.self),
-          )
-          if (val != null) {
-            node.set(val)
-          }
-        })
+      const startWatching = () => {
+        for (const getter of getters) {
+          watchEffect(() => {
+            const val = context.debug.runWithReader(
+              { readerId: node.__debug.id, reason: 'watch' },
+              () => getter(context.self),
+            )
+            if (val != null) {
+              node.set(val)
+            }
+          })
+        }
+      }
+      if (context.defer) {
+        context.defer(startWatching)
+      } else {
+        startWatching()
       }
       return node
     },
