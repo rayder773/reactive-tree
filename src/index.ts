@@ -16,6 +16,12 @@ export {
 	warning,
 } from './checks'
 export { createTree } from './createTree'
+export {
+	disposeOnHmr,
+	type HmrTreeSnapshotOptions,
+	type HotContext,
+	preserveTreeSnapshotOnHmr,
+} from './hmr'
 export type {
 	DebugNodeInfo,
 	DebugStore,
@@ -57,6 +63,11 @@ export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'
 export { record } from './nodes/record'
+export {
+	restoreTreeSnapshot,
+	takeTreeSnapshot,
+	type TreeSnapshot,
+} from './snapshot'
 export { state, withActions, withWatch } from './nodes/state'
 export { switchNode } from './nodes/switchNode'
 export { when } from './nodes/when'
@@ -66,6 +77,7 @@ export type {
 	AsyncError,
 	AsyncNode,
 	AsyncNodeOptions,
+	AsyncNodeSnapshot,
 	AsyncStatus,
 	BaseNode,
 	Check,

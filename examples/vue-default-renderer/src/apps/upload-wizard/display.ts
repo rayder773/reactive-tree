@@ -7,6 +7,7 @@ import type {
 import {
 	button,
 	createDisplayTree,
+	disposeOnHmr,
 	form,
 	input,
 	table,
@@ -37,97 +38,104 @@ type WizardDisplay = {
 	submitButton: ButtonNode
 }
 
-export const wizardDisplay = createDisplayTree(
-	wizard,
-	({ i18n }) => ({
-		uploadForm: form({
-			uploadType: input({
-				source: () => wizard.uploadType,
-				options: () =>
-					valuesFrom<UploadType>(wizard.uploadType).map((v) => ({
-						value: v,
-						label: i18n.t.value.uploadType[v],
-					})),
+function createWizardDisplay() {
+	return createDisplayTree(
+		wizard,
+		({ i18n }) => ({
+			uploadForm: form({
+				uploadType: input({
+					source: () => wizard.uploadType,
+					options: () =>
+						valuesFrom<UploadType>(wizard.uploadType).map((v) => ({
+							value: v,
+							label: i18n.t.value.uploadType[v],
+						})),
+				}),
+
+				approvedAction: when(
+					() => wizard.approvedAction !== undefined,
+					() =>
+						input({
+							source: () => wizard.approvedAction,
+							options: () =>
+								valuesFrom<ApprovedAction>(wizard.approvedAction!).map((v) => ({
+									value: v,
+									label: i18n.t.value.approvedAction[v],
+								})),
+						}),
+				),
+
+				file: input({
+					source: () => wizard.file,
+				}),
 			}),
 
-			approvedAction: when(
-				() => wizard.approvedAction !== undefined,
-				() =>
-					input({
-						source: () => wizard.approvedAction,
-						options: () =>
-							valuesFrom<ApprovedAction>(wizard.approvedAction!).map((v) => ({
-								value: v,
-								label: i18n.t.value.approvedAction[v],
-							})),
-					}),
-			),
-
-			file: input({
-				source: () => wizard.file,
-			}),
-		}),
-
-		mappingTable: table({
-			columns: () => [
-				{ id: 'label', text: text(() => i18n.t.value.mapping.field) },
-				{ id: 'select', text: text(() => i18n.t.value.mapping.csvColumn) },
-			],
-			rows: () => [
-				{ id: 'mpn', text: text(() => i18n.t.value.mapping.mpn) },
-				{
-					id: 'manufacturer',
-					text: text(() => i18n.t.value.mapping.manufacturer),
-				},
-				{ id: 'ipn', text: text(() => i18n.t.value.mapping.ipn) },
-			],
-		}),
-
-		mappingForm: form({
-			mpn: input({
-				source: () => wizard.generalMapping.mpn,
-				options: () =>
-					valuesFrom<string>(wizard.generalMapping.mpn, wizard).map((v) => ({
-						value: v,
-						label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
-					})),
-				disabled: () => wizard.columnSuggestions.status === 'loading',
+			mappingTable: table({
+				columns: () => [
+					{ id: 'label', text: text(() => i18n.t.value.mapping.field) },
+					{ id: 'select', text: text(() => i18n.t.value.mapping.csvColumn) },
+				],
+				rows: () => [
+					{ id: 'mpn', text: text(() => i18n.t.value.mapping.mpn) },
+					{
+						id: 'manufacturer',
+						text: text(() => i18n.t.value.mapping.manufacturer),
+					},
+					{ id: 'ipn', text: text(() => i18n.t.value.mapping.ipn) },
+				],
 			}),
 
-			manufacturer: input({
-				source: () => wizard.generalMapping.manufacturer,
-				options: () =>
-					valuesFrom<string>(wizard.generalMapping.manufacturer, wizard).map(
-						(v) => ({
+			mappingForm: form({
+				mpn: input({
+					source: () => wizard.generalMapping.mpn,
+					options: () =>
+						valuesFrom<string>(wizard.generalMapping.mpn, wizard).map((v) => ({
 							value: v,
 							label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
-						}),
-					),
-				disabled: () => wizard.columnSuggestions.status === 'loading',
+						})),
+					disabled: () => wizard.columnSuggestions.status === 'loading',
+				}),
+
+				manufacturer: input({
+					source: () => wizard.generalMapping.manufacturer,
+					options: () =>
+						valuesFrom<string>(wizard.generalMapping.manufacturer, wizard).map(
+							(v) => ({
+								value: v,
+								label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
+							}),
+						),
+					disabled: () => wizard.columnSuggestions.status === 'loading',
+				}),
+
+				ipn: input({
+					source: () => wizard.generalMapping.ipn,
+					options: () =>
+						valuesFrom<string>(wizard.generalMapping.ipn, wizard).map((v) => ({
+							value: v,
+							label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
+						})),
+					disabled: () => wizard.columnSuggestions.status === 'loading',
+				}),
 			}),
 
-			ipn: input({
-				source: () => wizard.generalMapping.ipn,
-				options: () =>
-					valuesFrom<string>(wizard.generalMapping.ipn, wizard).map((v) => ({
-						value: v,
-						label: v === NOT_MAPPED ? i18n.t.value.mapping.notMapped : v,
-					})),
-				disabled: () => wizard.columnSuggestions.status === 'loading',
+			submitButton: button<WizardDisplay>({
+				text: text(() => i18n.t.value.submit),
+				disabled: (root) => root.uploadForm.invalid.value,
+				handlers: {
+					click: wizard.currentStep.goNext,
+				},
 			}),
 		}),
-
-		submitButton: button<WizardDisplay>({
-			text: text(() => i18n.t.value.submit),
-			disabled: (root) => root.uploadForm.invalid.value,
-			handlers: {
-				click: wizard.currentStep.goNext,
+		{
+			plugins: {
+				i18n: i18nPlugin,
 			},
-		}),
-	}),
-	{
-		plugins: {
-			i18n: i18nPlugin,
 		},
-	},
+	)
+}
+
+export const wizardDisplay = disposeOnHmr(
+	createWizardDisplay(),
+	import.meta.hot,
 )

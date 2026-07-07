@@ -3,6 +3,7 @@ import type {
 	AsyncError,
 	AsyncNode,
 	AsyncNodeOptions,
+	AsyncNodeSnapshot,
 	AsyncStatus,
 	BuildContext,
 	NodeSpec,
@@ -125,6 +126,33 @@ export function asyncNode<T, TInput = void>(
 					} else if (!options.trigger) {
 						execute(undefined as unknown as TInput, false)
 					}
+				},
+				snapshot(): AsyncNodeSnapshot<T, TInput> {
+					return {
+						value: valueRef.value,
+						status: statusRef.value,
+						error: errorRef.value,
+						hasLastInput: lastInput !== UNSET,
+						...(lastInput !== UNSET ? { lastInput: lastInput as TInput } : {}),
+					}
+				},
+				restore(snapshot: AsyncNodeSnapshot<T, TInput>) {
+					abortController?.abort()
+					abortController = null
+					lastInput = snapshot.hasLastInput
+						? (snapshot.lastInput as TInput)
+						: UNSET
+
+					const isInFlight =
+						snapshot.status === 'loading' || snapshot.status === 'revalidating'
+					if (isInFlight && lastInput !== UNSET) {
+						execute(lastInput as TInput, snapshot.status === 'revalidating')
+						return
+					}
+
+					valueRef.value = snapshot.value
+					statusRef.value = isInFlight ? 'idle' : snapshot.status
+					errorRef.value = isInFlight ? null : snapshot.error
 				},
 				__register(fn: (input: TInput, signal: AbortSignal) => Promise<T>) {
 					fetcher = fn

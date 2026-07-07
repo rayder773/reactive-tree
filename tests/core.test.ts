@@ -1,19 +1,24 @@
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import type { StateNode } from '../src'
 import {
+	asyncNode,
 	check,
 	computed,
 	createTree,
+	defineAsync,
 	error,
 	fileType,
 	list,
 	manyOf,
 	maxLength,
 	oneOf,
+	preserveTreeSnapshotOnHmr,
 	record,
 	required,
+	restoreTreeSnapshot,
 	state,
 	switchNode,
+	takeTreeSnapshot,
 	when,
 	withWatch,
 } from '../src'
@@ -525,6 +530,106 @@ describe('reactive tree core', () => {
 			expect.arrayContaining(['mode.value', 'b.value']),
 		)
 		expect(tree.debug.readsOf('selected')).not.toContain('a.value')
+	})
+
+	it('async snapshot and restore preserves value and last input', async () => {
+		const calls: string[] = []
+		const createLookupTree = () =>
+			createTree({
+				lookup: defineAsync(asyncNode<string, string>(), {
+					fetch: async (input) => {
+						calls.push(input)
+						return `result:${input}`
+					},
+				}),
+			})
+
+		const first = createLookupTree()
+		first.lookup.call('alpha')
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
+		const snapshot = first.lookup.snapshot()
+		const second = createLookupTree()
+		second.lookup.restore(snapshot)
+
+		expect(second.lookup.status).toBe('success')
+		expect(second.lookup.value).toBe('result:alpha')
+
+		second.lookup.refetch()
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
+		expect(calls).toEqual(['alpha', 'alpha'])
+	})
+
+	it('tree snapshot and restore preserves state and async nodes', async () => {
+		const createLookupTree = () =>
+			createTree({
+				file: state<string | null>(null),
+				lookup: defineAsync(
+					asyncNode<{ columns: string[] }, string>({
+						trigger: (self) => self.file.value,
+						payload: (self) => self.file.value!,
+					}),
+					{
+						fetch: async () => ({ columns: ['MPN', 'Manufacturer'] }),
+					},
+				),
+				selectedColumn: state('NOT_MAPPED', {
+					checks: [
+						oneOf((root) => [
+							'NOT_MAPPED',
+							...(root.lookup.value?.columns ?? []),
+						]),
+					],
+				}),
+			})
+
+		const first = createLookupTree()
+		first.file.set('parts.csv')
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		first.selectedColumn.set('MPN')
+
+		const snapshot = takeTreeSnapshot(first)
+		const second = createLookupTree()
+
+		restoreTreeSnapshot(second, snapshot)
+
+		expect(second.file.value).toBe('parts.csv')
+		expect(second.lookup.status).toBe('success')
+		expect(second.lookup.value).toEqual({ columns: ['MPN', 'Manufacturer'] })
+		expect(second.selectedColumn.value).toBe('MPN')
+	})
+
+	it('hmr helper restores tree snapshot and stores the next one on dispose', () => {
+		let disposeCallback: ((data: Record<string, unknown>) => void) | undefined
+		const hot = {
+			data: {
+				counterSnapshot: {
+					state: { count: 7 },
+					async: {},
+				},
+			},
+			dispose(callback: (data: Record<string, unknown>) => void) {
+				disposeCallback = callback
+			},
+		}
+
+		const tree = preserveTreeSnapshotOnHmr(
+			createTree({
+				count: state(0),
+			}),
+			hot,
+			{ key: 'counterSnapshot' },
+		)
+
+		expect(tree.count.value).toBe(7)
+		tree.count.set(9)
+		disposeCallback?.(hot.data)
+
+		expect(hot.data.counterSnapshot).toMatchObject({
+			state: { count: 9 },
+			async: {},
+		})
 	})
 
 	it('debug updates conditional branch dependencies', () => {

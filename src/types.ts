@@ -189,6 +189,14 @@ export interface AsyncError {
 	payload?: unknown
 }
 
+export interface AsyncNodeSnapshot<T = unknown, TInput = void> {
+	value: T | null
+	status: AsyncStatus
+	error: AsyncError | null
+	hasLastInput: boolean
+	lastInput?: TInput
+}
+
 export interface AsyncNode<T = unknown, TInput = void>
 	extends BaseNode<T | null> {
 	readonly kind: 'async'
@@ -197,6 +205,8 @@ export interface AsyncNode<T = unknown, TInput = void>
 	readonly error: AsyncError | null
 	call(input: TInput): void
 	refetch(): void
+	snapshot(): AsyncNodeSnapshot<T, TInput>
+	restore(snapshot: AsyncNodeSnapshot<T, TInput>): void
 	/** @internal */
 	__register(fetcher: (input: TInput, signal: AbortSignal) => Promise<T>): void
 }
