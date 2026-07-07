@@ -10,7 +10,6 @@ import type {
 import {
 	button,
 	createDisplayTree,
-	disposeOnHmr,
 	dynamicRows,
 	form,
 	input,
@@ -169,7 +168,4 @@ function createWizardDisplay() {
 	)
 }
 
-export const wizardDisplay = disposeOnHmr(
-	createWizardDisplay(),
-	import.meta.hot,
-)
+export const wizardDisplay = createWizardDisplay()

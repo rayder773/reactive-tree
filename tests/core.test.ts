@@ -12,7 +12,6 @@ import {
 	manyOf,
 	maxLength,
 	oneOf,
-	preserveTreeSnapshotOnHmr,
 	record,
 	required,
 	restoreTreeSnapshot,
@@ -598,38 +597,6 @@ describe('reactive tree core', () => {
 		expect(second.lookup.status).toBe('success')
 		expect(second.lookup.value).toEqual({ columns: ['MPN', 'Manufacturer'] })
 		expect(second.selectedColumn.value).toBe('MPN')
-	})
-
-	it('hmr helper restores tree snapshot and stores the next one on dispose', () => {
-		let disposeCallback: ((data: Record<string, unknown>) => void) | undefined
-		const hot = {
-			data: {
-				counterSnapshot: {
-					state: { count: 7 },
-					async: {},
-				},
-			},
-			dispose(callback: (data: Record<string, unknown>) => void) {
-				disposeCallback = callback
-			},
-		}
-
-		const tree = preserveTreeSnapshotOnHmr(
-			createTree({
-				count: state(0),
-			}),
-			hot,
-			{ key: 'counterSnapshot' },
-		)
-
-		expect(tree.count.value).toBe(7)
-		tree.count.set(9)
-		disposeCallback?.(hot.data)
-
-		expect(hot.data.counterSnapshot).toMatchObject({
-			state: { count: 9 },
-			async: {},
-		})
 	})
 
 	it('debug updates conditional branch dependencies', () => {

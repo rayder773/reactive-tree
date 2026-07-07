@@ -47,6 +47,10 @@ function visitNodes(root: unknown, visit: (node: AnyNode) => void): void {
 	walk(root)
 }
 
+function snapshotNodeKey(node: AnyNode): string {
+	return node.id || node.__debug.path
+}
+
 export function takeTreeSnapshot(root: unknown): TreeSnapshot {
 	const snapshot: TreeSnapshot = {
 		state: {},
@@ -54,15 +58,15 @@ export function takeTreeSnapshot(root: unknown): TreeSnapshot {
 	}
 
 	visitNodes(root, (node) => {
-		const path = node.__debug.path
+		const key = snapshotNodeKey(node)
 
 		if (node.kind === 'state') {
-			snapshot.state[path] = node.value
+			snapshot.state[key] = node.value
 			return
 		}
 
 		if (node.kind === 'async') {
-			snapshot.async[path] =
+			snapshot.async[key] =
 				typeof node.snapshot === 'function'
 					? node.snapshot()
 					: {
@@ -92,9 +96,9 @@ export function restoreTreeSnapshot(
 			return
 		}
 
-		const path = node.__debug.path
-		if (pendingState.has(path) && node.set(pendingState.get(path))) {
-			pendingState.delete(path)
+		const key = snapshotNodeKey(node)
+		if (pendingState.has(key) && node.set(pendingState.get(key))) {
+			pendingState.delete(key)
 		}
 	})
 
@@ -103,7 +107,7 @@ export function restoreTreeSnapshot(
 			return
 		}
 
-		const asyncSnapshot = snapshot.async[node.__debug.path]
+		const asyncSnapshot = snapshot.async[snapshotNodeKey(node)]
 		if (asyncSnapshot) {
 			node.restore(asyncSnapshot)
 		}
@@ -114,9 +118,9 @@ export function restoreTreeSnapshot(
 			return
 		}
 
-		const path = node.__debug.path
-		if (pendingState.has(path) && node.set(pendingState.get(path))) {
-			pendingState.delete(path)
+		const key = snapshotNodeKey(node)
+		if (pendingState.has(key) && node.set(pendingState.get(key))) {
+			pendingState.delete(key)
 		}
 	})
 }

@@ -4,7 +4,7 @@ import {
 	type FileData,
 	fileType,
 	oneOf,
-	preserveTreeSnapshotOnHmr,
+	persistTreeSnapshot,
 	type RecordNode,
 	record,
 	required,
@@ -161,10 +161,6 @@ function createWizard() {
 	})
 }
 
-export const wizard = preserveTreeSnapshotOnHmr(
-	createWizard(),
-	import.meta.hot,
-	{
-		key: 'wizardSnapshot',
-	},
-)
+export const wizard = persistTreeSnapshot(createWizard(), {
+	key: 'wizardSnapshot',
+})

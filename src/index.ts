@@ -17,11 +17,9 @@ export {
 } from './checks'
 export { createTree } from './createTree'
 export {
-	disposeOnHmr,
-	type HmrTreeSnapshotOptions,
-	type HotContext,
-	preserveTreeSnapshotOnHmr,
-} from './hmr'
+	persistTreeSnapshot,
+	type PersistTreeSnapshotOptions,
+} from './persist'
 export type {
 	DebugNodeInfo,
 	DebugStore,
