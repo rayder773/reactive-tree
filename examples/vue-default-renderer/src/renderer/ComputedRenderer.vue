@@ -4,8 +4,8 @@ import DiagnosticsView from './DiagnosticsView.vue'
 import { nodeTitle, stringifyValue } from './rendererUtils'
 
 defineProps<{
-  node: ComputedNode<unknown>
-  label?: string
+	node: ComputedNode<unknown>
+	label?: string
 }>()
 </script>
 

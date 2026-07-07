@@ -2,64 +2,74 @@
 import { computed, ref } from 'vue'
 
 const props = defineProps<{
-  value: unknown
-  indent?: number
-  fieldKey?: string
-  mimeType?: string
+	value: unknown
+	indent?: number
+	fieldKey?: string
+	mimeType?: string
 }>()
 
-const indent = props.indent ?? 0
-const pad = '  '.repeat(indent)
-const padClose = '  '.repeat(Math.max(0, indent - 1))
+const currentIndent = props.indent ?? 0
+const pad = '  '.repeat(currentIndent)
+const padClose = '  '.repeat(Math.max(0, currentIndent - 1))
 
 const copied = ref(false)
 const showPreview = ref(false)
 
 async function copy(text: string) {
-  await navigator.clipboard.writeText(text)
-  copied.value = true
-  setTimeout(() => (copied.value = false), 1500)
+	await navigator.clipboard.writeText(text)
+	copied.value = true
+	setTimeout(() => (copied.value = false), 1500)
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v)
+	return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
 function isArray(v: unknown): v is unknown[] {
-  return Array.isArray(v)
+	return Array.isArray(v)
 }
 
 function truncate(s: string): string {
-  return s.length > 24 ? s.slice(0, 24) + '…"' : `${s}"`
+	return s.length > 24 ? s.slice(0, 24) + '…"' : `${s}"`
 }
 
 function mimeTypeOf(obj: Record<string, unknown>): string {
-  return typeof obj.type === 'string' ? obj.type : ''
+	return typeof obj.type === 'string' ? obj.type : ''
 }
 
 type PreviewKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'none'
 
 function previewKind(mime: string): PreviewKind {
-  if (mime.startsWith('image/')) return 'image'
-  if (mime.startsWith('video/')) return 'video'
-  if (mime.startsWith('audio/')) return 'audio'
-  if (mime === 'application/pdf') return 'pdf'
-  if (mime.startsWith('text/') || mime === 'application/json' || mime === 'application/xml') return 'text'
-  return 'none'
+	if (mime.startsWith('image/')) return 'image'
+	if (mime.startsWith('video/')) return 'video'
+	if (mime.startsWith('audio/')) return 'audio'
+	if (mime === 'application/pdf') return 'pdf'
+	if (
+		mime.startsWith('text/') ||
+		mime === 'application/json' ||
+		mime === 'application/xml'
+	)
+		return 'text'
+	return 'none'
 }
 
 const dataUrl = computed(() => {
-  if (props.fieldKey !== 'base64' || typeof props.value !== 'string' || !props.mimeType) return ''
-  return `data:${props.mimeType};base64,${props.value}`
+	if (
+		props.fieldKey !== 'base64' ||
+		typeof props.value !== 'string' ||
+		!props.mimeType
+	)
+		return ''
+	return `data:${props.mimeType};base64,${props.value}`
 })
 
 const textContent = computed(() => {
-  if (props.fieldKey !== 'base64' || typeof props.value !== 'string') return ''
-  try {
-    return atob(props.value)
-  } catch {
-    return ''
-  }
+	if (props.fieldKey !== 'base64' || typeof props.value !== 'string') return ''
+	try {
+		return atob(props.value)
+	} catch {
+		return ''
+	}
 })
 
 const kind = computed(() => previewKind(props.mimeType ?? ''))
@@ -74,7 +84,7 @@ const kind = computed(() => previewKind(props.mimeType ?? ''))
       <span class="jv-colon">: </span>
       <JsonView
         :value="v"
-        :indent="indent + 1"
+        :indent="currentIndent + 1"
         :field-key="String(k)"
         :mime-type="String(k) === 'base64' && isObject(value) ? mimeTypeOf(value as Record<string, unknown>) : undefined"
       />
@@ -88,7 +98,7 @@ const kind = computed(() => previewKind(props.mimeType ?? ''))
     <span class="jv-brace">[</span>
     <div v-for="(v, i) in value" :key="i" class="jv-row">
       <span class="jv-pad">{{ pad }}</span>
-      <JsonView :value="v" :indent="indent + 1" />
+      <JsonView :value="v" :indent="currentIndent + 1" />
       <span v-if="i < value.length - 1" class="jv-comma">,</span>
     </div>
     <span class="jv-pad">{{ padClose }}</span>

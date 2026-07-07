@@ -2,8 +2,8 @@
 import type { ButtonNode } from '../../../../src'
 
 defineProps<{
-  node: ButtonNode
-  label?: string
+	node: ButtonNode
+	label?: string
 }>()
 </script>
 

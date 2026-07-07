@@ -2,20 +2,20 @@
 import { computed } from 'vue'
 import type { AnyNode, StateNode } from '../../../../src'
 import DiagnosticsView from './DiagnosticsView.vue'
-import {
-  controlKind,
-  fileTypeAccept,
-  manyOfOptions,
-  nodeTitle,
-  oneOfOptions,
-  stringifyValue,
-} from './rendererUtils'
 import { fileToData } from './fileUtils'
+import {
+	controlKind,
+	fileTypeAccept,
+	manyOfOptions,
+	nodeTitle,
+	oneOfOptions,
+	stringifyValue,
+} from './rendererUtils'
 
 const props = defineProps<{
-  node: StateNode<unknown>
-  root: AnyNode
-  label?: string
+	node: StateNode<unknown>
+	root: AnyNode
+	label?: string
 }>()
 
 const kind = computed(() => controlKind(props.node, props.root))
@@ -25,44 +25,44 @@ const manyOptions = computed(() => manyOfOptions(props.node, props.root) ?? [])
 const title = computed(() => nodeTitle(props.node, props.label || 'state'))
 
 function setFromText(event: Event) {
-  props.node.set((event.target as HTMLInputElement).value)
+	props.node.set((event.target as HTMLInputElement).value)
 }
 
 function setFromNumber(event: Event) {
-  const rawValue = (event.target as HTMLInputElement).value
-  props.node.set(rawValue === '' ? null : Number(rawValue))
+	const rawValue = (event.target as HTMLInputElement).value
+	props.node.set(rawValue === '' ? null : Number(rawValue))
 }
 
 function setFromCheckbox(event: Event) {
-  props.node.set((event.target as HTMLInputElement).checked)
+	props.node.set((event.target as HTMLInputElement).checked)
 }
 
 function setFromSelect(event: Event) {
-  const selected = (event.target as HTMLSelectElement).value
-  props.node.set(selected === '' ? null : selected)
+	const selected = (event.target as HTMLSelectElement).value
+	props.node.set(selected === '' ? null : selected)
 }
 
 async function setFromFile(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  props.node.set(file ? await fileToData(file) : null)
+	const file = (event.target as HTMLInputElement).files?.[0]
+	props.node.set(file ? await fileToData(file) : null)
 }
 
 function isSelected(option: unknown): boolean {
-  return Array.isArray(props.node.value) && props.node.value.includes(option)
+	return Array.isArray(props.node.value) && props.node.value.includes(option)
 }
 
 function toggleMany(option: unknown, event: Event) {
-  const checked = (event.target as HTMLInputElement).checked
-  const current = Array.isArray(props.node.value) ? [...props.node.value] : []
+	const checked = (event.target as HTMLInputElement).checked
+	const current = Array.isArray(props.node.value) ? [...props.node.value] : []
 
-  if (checked && !current.includes(option)) {
-    props.node.set([...current, option])
-    return
-  }
+	if (checked && !current.includes(option)) {
+		props.node.set([...current, option])
+		return
+	}
 
-  if (!checked) {
-    props.node.set(current.filter(item => item !== option))
-  }
+	if (!checked) {
+		props.node.set(current.filter((item) => item !== option))
+	}
 }
 </script>
 

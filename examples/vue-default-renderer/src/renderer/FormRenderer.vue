@@ -5,9 +5,9 @@ import NodeRenderer from './NodeRenderer.vue'
 import { formChildEntries, nodeTitle } from './rendererUtils'
 
 defineProps<{
-  node: FormNode<any>
-  root: AnyNode
-  label?: string
+	node: FormNode<any>
+	root: AnyNode
+	label?: string
 }>()
 </script>
 

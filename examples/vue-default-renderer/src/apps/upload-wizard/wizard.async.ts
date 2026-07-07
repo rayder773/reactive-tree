@@ -12,13 +12,17 @@ export const uploadedFileId = defineAsync(
 		fetch: async (payload, signal) => {
 			const form = new FormData()
 			form.append('file', payload as unknown as Blob)
-			const r = await fetch('/api/upload', { method: 'POST', body: form, signal })
+			const r = await fetch('/api/upload', {
+				method: 'POST',
+				body: form,
+				signal,
+			})
 			return r.json()
 		},
 		scenarios: {
 			success: success({ id: 'file-abc-123' }, { delay: 1500 }),
-			slow:    success({ id: 'file-abc-123' }, { delay: 4000 }),
-			error:   error('Failed to upload file', { status: 500 }),
+			slow: success({ id: 'file-abc-123' }, { delay: 4000 }),
+			error: error('Failed to upload file', { status: 500 }),
 			loading: loading(),
 		},
 	},

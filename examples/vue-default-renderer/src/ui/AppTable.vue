@@ -2,7 +2,7 @@
 import type { TableNode } from '../../../../src'
 
 defineProps<{
-  node?: TableNode | null
+	node?: TableNode | null
 }>()
 </script>
 

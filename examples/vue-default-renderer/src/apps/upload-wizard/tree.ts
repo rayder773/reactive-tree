@@ -1,6 +1,18 @@
-import { type AsyncNode, createTree, type FileData, fileType, oneOf, required, state, type StateNode, withActions, withWatch, when } from "../../../../../src";
+import {
+	type AsyncNode,
+	createTree,
+	type FileData,
+	fileType,
+	oneOf,
+	required,
+	type StateNode,
+	state,
+	when,
+	withActions,
+	withWatch,
+} from '../../../../../src'
+import { type ColumnSuggestion, columnSuggestions } from './column-suggestions'
 import { uploadedFileId } from './wizard.async'
-import { columnSuggestions, type ColumnSuggestion } from './column-suggestions'
 
 export const NOT_MAPPED = 'NOT_MAPPED' as const
 
@@ -67,35 +79,55 @@ export const wizard = createTree({
 			state<string>(NOT_MAPPED, {
 				label: 'MPN column',
 				checks: [
-					oneOf((root: Wizard) => [NOT_MAPPED, ...(root.columnSuggestions.value?.map(c => c.name) ?? [])]),
+					oneOf((root: Wizard) => [
+						NOT_MAPPED,
+						...(root.columnSuggestions.value?.map((c) => c.name) ?? []),
+					]),
 				],
 			}),
-			[(root: Wizard) => root.columnSuggestions.value?.find(c => c.mappedTo === 'mpn')?.name],
+			[
+				(root: Wizard) =>
+					root.columnSuggestions.value?.find((c) => c.mappedTo === 'mpn')?.name,
+			],
 		),
 
 		manufacturer: withWatch(
 			state<string>(NOT_MAPPED, {
 				label: 'Manufacturer column',
 				checks: [
-					oneOf((root: Wizard) => [NOT_MAPPED, ...(root.columnSuggestions.value?.map(c => c.name) ?? [])]),
+					oneOf((root: Wizard) => [
+						NOT_MAPPED,
+						...(root.columnSuggestions.value?.map((c) => c.name) ?? []),
+					]),
 				],
 			}),
-			[(root: Wizard) => root.columnSuggestions.value?.find(c => c.mappedTo === 'manufacturer')?.name],
+			[
+				(root: Wizard) =>
+					root.columnSuggestions.value?.find(
+						(c) => c.mappedTo === 'manufacturer',
+					)?.name,
+			],
 		),
 
 		ipn: withWatch(
 			state<string>(NOT_MAPPED, {
 				label: 'IPN column',
 				checks: [
-					oneOf((root: Wizard) => [NOT_MAPPED, ...(root.columnSuggestions.value?.map(c => c.name) ?? [])]),
+					oneOf((root: Wizard) => [
+						NOT_MAPPED,
+						...(root.columnSuggestions.value?.map((c) => c.name) ?? []),
+					]),
 				],
 			}),
-			[(root: Wizard) => root.columnSuggestions.value?.find(c => c.mappedTo === 'ipn')?.name],
+			[
+				(root: Wizard) =>
+					root.columnSuggestions.value?.find((c) => c.mappedTo === 'ipn')?.name,
+			],
 		),
 	},
 	customFormFields: when(
 		(self: Wizard) => self.uploadType.value === 'customPartData',
-		() => ({})
+		() => ({}),
 	),
 
 	//Network requests

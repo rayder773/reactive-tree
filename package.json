@@ -1,20 +1,23 @@
 {
-  "name": "reactive-tree",
-  "version": "1.0.0",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "dev": "npm --prefix examples/vue-default-renderer run dev"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.9",
-    "vue": "^3.5.38"
-  }
+	"name": "reactive-tree",
+	"version": "1.0.0",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit",
+		"dev": "npm --prefix examples/vue-default-renderer run dev",
+		"check": "biome check .",
+		"fix": "biome check --write ."
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"description": "",
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.2",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.9",
+		"vue": "^3.5.38"
+	}
 }

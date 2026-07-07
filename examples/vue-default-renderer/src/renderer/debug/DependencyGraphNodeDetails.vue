@@ -2,9 +2,9 @@
 import type { AnyNode, DebugNodeInfo, DebugStore } from '../../../../../src'
 
 const props = defineProps<{
-  tree: AnyNode & { debug: DebugStore }
-  nodeId: string | null
-  nodes: readonly DebugNodeInfo[]
+	tree: AnyNode & { debug: DebugStore }
+	nodeId: string | null
+	nodes: readonly DebugNodeInfo[]
 }>()
 </script>
 

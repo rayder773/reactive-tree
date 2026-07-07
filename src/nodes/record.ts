@@ -1,136 +1,174 @@
-import { computed as vueComputed, effectScope, shallowReactive, watchEffect, type EffectScope } from 'vue'
-import type { AnyNode, BuildContext, NodeOptions, NodeSpec, RecordNode, SectionChildren } from '../types'
-import { activeChecks, childPath, diagnosticsFor, diagnosticsRefs, nodeDiagnostics, nodeValue, registerDebugNode } from './utils'
-import { resolveMaybeWhen } from './when'
+import {
+	type EffectScope,
+	effectScope,
+	shallowReactive,
+	computed as vueComputed,
+	watchEffect,
+} from 'vue'
+import type {
+	AnyNode,
+	BuildContext,
+	NodeOptions,
+	NodeSpec,
+	RecordNode,
+	SectionChildren,
+} from '../types'
 import { section } from './section'
+import {
+	activeChecks,
+	childPath,
+	diagnosticsFor,
+	diagnosticsRefs,
+	nodeDiagnostics,
+	nodeValue,
+	registerDebugNode,
+} from './utils'
+import { resolveMaybeWhen } from './when'
 
 function isNodeSpec(value: unknown): value is NodeSpec<any, any> {
-  return typeof value === 'object' && value !== null && 'build' in value && typeof (value as any).build === 'function'
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'build' in value &&
+		typeof (value as any).build === 'function'
+	)
 }
 
-export interface RecordOptions<TItem, TKey extends string, TItemNode extends AnyNode> extends NodeOptions<Record<string, TItemNode['value']>> {
-  from: (self: any, data?: any) => readonly TItem[]
-  key: (item: TItem) => TKey
-  item: (item: TItem) => NodeSpec<TItemNode> | SectionChildren
+export interface RecordOptions<
+	TItem,
+	TKey extends string,
+	TItemNode extends AnyNode,
+> extends NodeOptions<Record<string, TItemNode['value']>> {
+	from: (self: any, data?: any) => readonly TItem[]
+	key: (item: TItem) => TKey
+	item: (item: TItem) => NodeSpec<TItemNode> | SectionChildren
 }
 
 export function record<
-  TItem = any,
-  TKey extends string = string,
-  TItemNode extends AnyNode = AnyNode,
+	TItem = any,
+	TKey extends string = string,
+	TItemNode extends AnyNode = AnyNode,
 >(
-  options: RecordOptions<TItem, TKey, TItemNode>,
+	options: RecordOptions<TItem, TKey, TItemNode>,
 ): NodeSpec<RecordNode<TItemNode, TKey>> {
-  return {
-    build(context: BuildContext) {
-      const checks = activeChecks(options)
-      const entries = shallowReactive(new Map<string, { node: TItemNode; scope: EffectScope }>()) as Map<
-        string,
-        { node: TItemNode; scope: EffectScope }
-      >
+	return {
+		build(context: BuildContext) {
+			const checks = activeChecks(options)
+			const entries = shallowReactive(
+				new Map<string, { node: TItemNode; scope: EffectScope }>(),
+			) as Map<string, { node: TItemNode; scope: EffectScope }>
 
-      const node = {
-        kind: 'record' as const,
-        id: options.id,
-        label: options.label,
-        metadata: options.metadata,
-        checks,
-        byKey(key: string) {
-          return resolveMaybeWhen(entries.get(key)?.node) as TItemNode | undefined
-        },
-      } as unknown as RecordNode<TItemNode, TKey>
+			const node = {
+				kind: 'record' as const,
+				id: options.id,
+				label: options.label,
+				metadata: options.metadata,
+				checks,
+				byKey(key: string) {
+					return resolveMaybeWhen(entries.get(key)?.node) as
+						| TItemNode
+						| undefined
+				},
+			} as unknown as RecordNode<TItemNode, TKey>
 
-      registerDebugNode(context, node, 'record')
+			registerDebugNode(context, node, 'record')
 
-      const ensureProperty = (key: string) => {
-        if (Object.prototype.hasOwnProperty.call(node, key)) {
-          return
-        }
+			const ensureProperty = (key: string) => {
+				if (Object.hasOwn(node, key)) {
+					return
+				}
 
-        Object.defineProperty(node, key, {
-          enumerable: true,
-          configurable: true,
-          get: () => node.byKey(key),
-        })
-      }
+				Object.defineProperty(node, key, {
+					enumerable: true,
+					configurable: true,
+					get: () => node.byKey(key),
+				})
+			}
 
-      watchEffect(() => {
-        const source = context.debug.runWithReader(
-          { readerId: context.path, reason: 'record.from' },
-          () => options.from(context.self, context.data),
-        )
-        const nextKeys = new Set<string>()
+			watchEffect(
+				() => {
+					const source = context.debug.runWithReader(
+						{ readerId: context.path, reason: 'record.from' },
+						() => options.from(context.self, context.data),
+					)
+					const nextKeys = new Set<string>()
 
-        for (const sourceItem of source) {
-          const key = options.key(sourceItem)
-          nextKeys.add(key)
-          ensureProperty(key)
+					for (const sourceItem of source) {
+						const key = options.key(sourceItem)
+						nextKeys.add(key)
+						ensureProperty(key)
 
-          if (!entries.has(key)) {
-            const scope = effectScope()
-            const result = options.item(sourceItem)
-            const spec = isNodeSpec(result) ? result : section(result as SectionChildren)
-            const itemNode = scope.run(() =>
-              spec.build({
-                ...context,
-                path: childPath(context.path, key),
-                registerNode: undefined,
-              }),
-            ) as TItemNode
-            entries.set(key, { node: itemNode, scope })
-          }
-        }
+						if (!entries.has(key)) {
+							const scope = effectScope()
+							const result = options.item(sourceItem)
+							const spec = isNodeSpec(result)
+								? result
+								: section(result as SectionChildren)
+							const itemNode = scope.run(() =>
+								spec.build({
+									...context,
+									path: childPath(context.path, key),
+									registerNode: undefined,
+								}),
+							) as TItemNode
+							entries.set(key, { node: itemNode, scope })
+						}
+					}
 
-        for (const [key, entry] of Array.from(entries)) {
-          if (!nextKeys.has(key)) {
-            entry.scope.stop()
-            entries.delete(key)
-            delete (node as any)[key]
-          }
-        }
-      }, { flush: 'sync' })
+					for (const [key, entry] of Array.from(entries)) {
+						if (!nextKeys.has(key)) {
+							entry.scope.stop()
+							entries.delete(key)
+							delete (node as any)[key]
+						}
+					}
+				},
+				{ flush: 'sync' },
+			)
 
-      const items = vueComputed(() => {
-        const result: Record<string, TItemNode> = {}
+			const items = vueComputed(() => {
+				const result: Record<string, TItemNode> = {}
 
-        for (const [key, entry] of entries) {
-          const item = resolveMaybeWhen(entry.node)
+				for (const [key, entry] of entries) {
+					const item = resolveMaybeWhen(entry.node)
 
-          if (item) {
-            result[key] = item as TItemNode
-          }
-        }
+					if (item) {
+						result[key] = item as TItemNode
+					}
+				}
 
-        return result
-      })
+				return result
+			})
 
-      const valueRef = vueComputed(() => {
-        const result: Record<string, TItemNode['value']> = {}
+			const valueRef = vueComputed(() => {
+				const result: Record<string, TItemNode['value']> = {}
 
-        for (const [key, item] of Object.entries(items.value)) {
-          result[key] = nodeValue(item) as TItemNode['value']
-        }
+				for (const [key, item] of Object.entries(items.value)) {
+					result[key] = nodeValue(item) as TItemNode['value']
+				}
 
-        return result
-      })
+				return result
+			})
 
-      Object.assign(node, { items })
-      Object.defineProperty(node, 'value', {
-        enumerable: true,
-        configurable: true,
-        get: () => valueRef.value,
-      })
-      Object.assign(
-        node,
-        diagnosticsRefs(() => [
-          ...diagnosticsFor(checks, valueRef.value, context, node),
-          ...Object.values(items.value).flatMap(item => nodeDiagnostics(item)),
-        ]),
-      )
+			Object.assign(node, { items })
+			Object.defineProperty(node, 'value', {
+				enumerable: true,
+				configurable: true,
+				get: () => valueRef.value,
+			})
+			Object.assign(
+				node,
+				diagnosticsRefs(() => [
+					...diagnosticsFor(checks, valueRef.value, context, node),
+					...Object.values(items.value).flatMap((item) =>
+						nodeDiagnostics(item),
+					),
+				]),
+			)
 
-      context.registerNode?.(node)
+			context.registerNode?.(node)
 
-      return node
-    },
-  }
+			return node
+		},
+	}
 }

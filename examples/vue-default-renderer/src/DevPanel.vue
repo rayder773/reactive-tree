@@ -5,8 +5,8 @@ import JsonView from './renderer/JsonView.vue'
 import TreeRenderer from './renderer/TreeRenderer.vue'
 
 const props = defineProps<{
-  tree: any
-  display?: any
+	tree: any
+	display?: any
 }>()
 
 const treeDiagnostics = computed(() => props.tree.diagnostics.value)

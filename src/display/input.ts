@@ -1,160 +1,197 @@
 import { computed as vueComputed } from 'vue'
 import { state } from '../nodes/state'
-import { childPath, diagnosticsRefs, emptyDiagnosticsRefs, nodeDiagnostics, registerDebugNode } from '../nodes/utils'
+import {
+	childPath,
+	diagnosticsRefs,
+	emptyDiagnosticsRefs,
+	nodeDiagnostics,
+	registerDebugNode,
+} from '../nodes/utils'
 import type { AnyNode, BuildContext, NodeSpec } from '../types'
 
 export type InputGetter<T> = (self: InputNode) => T
 
-export type SourceSpec = { value: unknown; set(v: unknown): void } | InputGetter<{ value: unknown; set(v: unknown): void } | undefined>
+export type SourceSpec =
+	| { value: unknown; set(v: unknown): void }
+	| InputGetter<{ value: unknown; set(v: unknown): void } | undefined>
 
 export interface InputConfig {
-  source?: SourceSpec
-  showError?: InputGetter<boolean>
-  errorMessage?: InputGetter<string | undefined>
-  disabled?: InputGetter<boolean>
-  dirty?: InputGetter<boolean>
-  [key: string]: InputGetter<unknown> | SourceSpec | undefined
+	source?: SourceSpec
+	showError?: InputGetter<boolean>
+	errorMessage?: InputGetter<string | undefined>
+	disabled?: InputGetter<boolean>
+	dirty?: InputGetter<boolean>
+	[key: string]: InputGetter<unknown> | SourceSpec | undefined
 }
 
 export interface InputNode extends AnyNode {
-  readonly kind: 'input'
-  readonly source: { value: unknown; set(v: unknown): void } | undefined
-  readonly dataRoot: any
-  readonly domProp: 'value'
-  readonly touched: { value: boolean; set(v: boolean): boolean }
-  readonly focused: { value: boolean; set(v: boolean): boolean }
-  readonly showError: { value: boolean }
-  readonly errorMessage: { value: string | undefined }
-  readonly disabled: { value: boolean }
-  readonly dirty: { value: boolean }
-  [key: string]: any
+	readonly kind: 'input'
+	readonly source: { value: unknown; set(v: unknown): void } | undefined
+	readonly dataRoot: any
+	readonly domProp: 'value'
+	readonly touched: { value: boolean; set(v: boolean): boolean }
+	readonly focused: { value: boolean; set(v: boolean): boolean }
+	readonly showError: { value: boolean }
+	readonly errorMessage: { value: string | undefined }
+	readonly disabled: { value: boolean }
+	readonly dirty: { value: boolean }
+	[key: string]: any
 }
 
 function buildInputChild(
-  context: BuildContext,
-  key: string,
-  getter: InputGetter<unknown> | undefined,
-  inputNodeRef: { current: any },
+	context: BuildContext,
+	key: string,
+	getter: InputGetter<unknown> | undefined,
+	inputNodeRef: { current: any },
 ): any {
-  if (getter) {
-    const path = childPath(context.path, key)
-    const valueRef = vueComputed(() =>
-      context.debug.runWithReader(
-        { readerId: path, reason: 'computed' },
-        () => getter(context.debug.createSelfProxy(inputNodeRef.current)),
-      ),
-    )
-    const node: any = {
-      kind: 'computed',
-      get value() {
-        return valueRef.value
-      },
-    }
-    context.debug.registerNode(node, { id: path, path, kind: 'computed', active: true })
-    Object.assign(node, emptyDiagnosticsRefs)
-    return node
-  }
-  else {
-    return state(undefined as any).build({
-      ...context,
-      path: childPath(context.path, key),
-      registerNode: undefined,
-    })
-  }
+	if (getter) {
+		const path = childPath(context.path, key)
+		const valueRef = vueComputed(() =>
+			context.debug.runWithReader({ readerId: path, reason: 'computed' }, () =>
+				getter(context.debug.createSelfProxy(inputNodeRef.current)),
+			),
+		)
+		const node: any = {
+			kind: 'computed',
+			get value() {
+				return valueRef.value
+			},
+		}
+		context.debug.registerNode(node, {
+			id: path,
+			path,
+			kind: 'computed',
+			active: true,
+		})
+		Object.assign(node, emptyDiagnosticsRefs)
+		return node
+	} else {
+		return state(undefined as any).build({
+			...context,
+			path: childPath(context.path, key),
+			registerNode: undefined,
+		})
+	}
 }
 
 export function input(config: InputConfig = {}): NodeSpec<InputNode> {
-  return {
-    build(context: BuildContext): InputNode {
-      const touched = state(false).build({
-        ...context,
-        path: childPath(context.path, 'touched'),
-        registerNode: undefined,
-      })
+	return {
+		build(context: BuildContext): InputNode {
+			const touched = state(false).build({
+				...context,
+				path: childPath(context.path, 'touched'),
+				registerNode: undefined,
+			})
 
-      const focused = state(false).build({
-        ...context,
-        path: childPath(context.path, 'focused'),
-        registerNode: undefined,
-      })
+			const focused = state(false).build({
+				...context,
+				path: childPath(context.path, 'focused'),
+				registerNode: undefined,
+			})
 
-      const node: any = {
-        kind: 'input' as const,
-        touched,
-        focused,
-        dataRoot: context.data,
-        domProp: 'value' as const,
-      }
+			const node: any = {
+				kind: 'input' as const,
+				touched,
+				focused,
+				dataRoot: context.data,
+				domProp: 'value' as const,
+			}
 
-      registerDebugNode(context, node, 'input', true, (config as any).__source)
-      const diagnosticsReaderId = childPath(context.path, 'diagnostics')
-      Object.assign(node, diagnosticsRefs(() => {
-        const src = node.source
-        if (src?.__debug?.id) {
-          context.debug.startReader({ readerId: diagnosticsReaderId, reason: 'computed' })
-          try {
-            context.debug.trackRead({ targetId: src.__debug.id, targetProp: 'diagnostics' })
-            return nodeDiagnostics(src)
-          } finally {
-            context.debug.endReader()
-          }
-        }
-        return nodeDiagnostics(src)
-      }))
+			registerDebugNode(context, node, 'input', true, (config as any).__source)
+			const diagnosticsReaderId = childPath(context.path, 'diagnostics')
+			Object.assign(
+				node,
+				diagnosticsRefs(() => {
+					const src = node.source
+					if (src?.__debug?.id) {
+						context.debug.startReader({
+							readerId: diagnosticsReaderId,
+							reason: 'computed',
+						})
+						try {
+							context.debug.trackRead({
+								targetId: src.__debug.id,
+								targetProp: 'diagnostics',
+							})
+							return nodeDiagnostics(src)
+						} finally {
+							context.debug.endReader()
+						}
+					}
+					return nodeDiagnostics(src)
+				}),
+			)
 
-      const inputNodeRef = { current: node }
+			const inputNodeRef = { current: node }
 
-      Object.defineProperty(node, 'source', {
-        enumerable: false,
-        configurable: true,
-        get() {
-          if (!config.source) return undefined
-          if (typeof config.source === 'function') {
-            return (config.source as InputGetter<any>)(inputNodeRef.current)
-          }
-          return config.source
-        },
-      })
+			Object.defineProperty(node, 'source', {
+				enumerable: false,
+				configurable: true,
+				get() {
+					if (!config.source) return undefined
+					if (typeof config.source === 'function') {
+						return (config.source as InputGetter<any>)(inputNodeRef.current)
+					}
+					return config.source
+				},
+			})
 
-      const initialSourceValue = node.source?.value
+			const initialSourceValue = node.source?.value
 
-      const effectiveConfig: InputConfig = {
-        ...config,
-        dirty: config.dirty ?? (config.source !== undefined
-          ? (_self: InputNode) => _self.source?.value !== initialSourceValue
-          : undefined
-        ),
-      }
+			const effectiveConfig: InputConfig = {
+				...config,
+				dirty:
+					config.dirty ??
+					(config.source !== undefined
+						? (_self: InputNode) => _self.source?.value !== initialSourceValue
+						: undefined),
+			}
 
-      const defaultKeys = ['showError', 'errorMessage', 'disabled', 'dirty']
-      const configKeys = Object.keys(config).filter(k => !defaultKeys.includes(k) && k !== 'source')
+			const defaultKeys = ['showError', 'errorMessage', 'disabled', 'dirty']
+			const configKeys = Object.keys(config).filter(
+				(k) => !defaultKeys.includes(k) && k !== 'source',
+			)
 
-      for (const key of [...defaultKeys, ...configKeys]) {
-        node[key] = buildInputChild(context, key, effectiveConfig[key] as InputGetter<unknown> | undefined, inputNodeRef)
-      }
+			for (const key of [...defaultKeys, ...configKeys]) {
+				node[key] = buildInputChild(
+					context,
+					key,
+					effectiveConfig[key] as InputGetter<unknown> | undefined,
+					inputNodeRef,
+				)
+			}
 
-      inputNodeRef.current = node
+			inputNodeRef.current = node
 
-      Object.defineProperty(node, '__domBindings', {
-        enumerable: false,
-        configurable: true,
-        get() {
-          const src = node.source ?? null
-          const kind: string | undefined = src?.kind
-          const tag = kind === 'state' ? 'state' : kind === 'async' ? 'async' : kind === 'computed' ? 'computed' : null
-          return [{
-            prop: 'value',
-            sourceNode: src,
-            tag,
-            editable: typeof src?.set === 'function',
-            sourceLocation: (src as any)?.__debug?.sourceLocation,
-          }]
-        },
-      })
+			Object.defineProperty(node, '__domBindings', {
+				enumerable: false,
+				configurable: true,
+				get() {
+					const src = node.source ?? null
+					const kind: string | undefined = src?.kind
+					const tag =
+						kind === 'state'
+							? 'state'
+							: kind === 'async'
+								? 'async'
+								: kind === 'computed'
+									? 'computed'
+									: null
+					return [
+						{
+							prop: 'value',
+							sourceNode: src,
+							tag,
+							editable: typeof src?.set === 'function',
+							sourceLocation: (src as any)?.__debug?.sourceLocation,
+						},
+					]
+				},
+			})
 
-      context.registerNode?.(node)
+			context.registerNode?.(node)
 
-      return node as InputNode
-    },
-  }
+			return node as InputNode
+		},
+	}
 }

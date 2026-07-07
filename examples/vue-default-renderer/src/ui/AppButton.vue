@@ -2,7 +2,7 @@
 import type { ButtonNode } from '../../../../src'
 
 defineProps<{
-  node?: ButtonNode | null
+	node?: ButtonNode | null
 }>()
 </script>
 

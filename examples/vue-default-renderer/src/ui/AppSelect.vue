@@ -4,10 +4,17 @@ import type { InputNode } from '../../../../src'
 import { useInputBind } from './useInputBind'
 
 const props = defineProps<{
-  node?: InputNode | null
+	node?: InputNode | null
 }>()
 
-const { model, onFocus, onBlur, showError, errorMessage, disabled: isDisabled } = useInputBind(props.node)
+const {
+	model,
+	onFocus,
+	onBlur,
+	showError,
+	errorMessage,
+	disabled: isDisabled,
+} = useInputBind(props.node)
 
 const options = computed(() => (props.node as any)?.options?.value ?? [])
 </script>

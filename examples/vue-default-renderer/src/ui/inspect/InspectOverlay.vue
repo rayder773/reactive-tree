@@ -1,358 +1,414 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ActionNode, AnyNode, DebugStore } from '../../../../../src'
-import { controlKind, oneOfOptions, manyOfOptions } from '../../renderer/rendererUtils'
-import { activeEntry, cancelHide, scheduleHide } from './state'
 import JsonView from '../../renderer/JsonView.vue'
+import {
+	controlKind,
+	manyOfOptions,
+	oneOfOptions,
+} from '../../renderer/rendererUtils'
+import { activeEntry, cancelHide, scheduleHide } from './state'
 
 interface FlatDep {
-  label: string
-  depth: number
-  isCross: boolean
-  sourceLocation?: { file: string; line: number }
+	label: string
+	depth: number
+	isCross: boolean
+	sourceLocation?: { file: string; line: number }
 }
 
 function buildFlatDeps(
-  store: DebugStore,
-  readerId: string,
-  depth = 0,
-  visited = new Set<string>(),
+	store: DebugStore,
+	readerId: string,
+	depth = 0,
+	visited = new Set<string>(),
 ): FlatDep[] {
-  if (depth > 5 || visited.has(readerId)) return []
-  visited.add(readerId)
+	if (depth > 5 || visited.has(readerId)) return []
+	visited.add(readerId)
 
-  const nodeMap = new Map(store.nodes.value.map(n => [n.id, n]))
-  const depStrings = [...new Set(store.readsOf(readerId))]
-  const result: FlatDep[] = []
+	const nodeMap = new Map(store.nodes.value.map((n) => [n.id, n]))
+	const depStrings = [...new Set(store.readsOf(readerId))]
+	const result: FlatDep[] = []
 
-  for (const depStr of depStrings) {
-    const lastDot = depStr.lastIndexOf('.')
-    const targetId = lastDot >= 0 ? depStr.slice(0, lastDot) : depStr
-    const targetProp = lastDot >= 0 ? depStr.slice(lastDot + 1) : depStr
-    const isCross = !nodeMap.has(targetId)
-    const nodeName = targetId.split('.').pop() ?? targetId
-    // hide `.diagnostics` — it's an internal delegation detail, node name alone is enough
-    const label = targetProp === 'diagnostics' ? nodeName : `${nodeName}.${targetProp}`
-    const nodeInfo = nodeMap.get(targetId)
-    const sourceLocation = nodeInfo?.sourceLocation
+	for (const depStr of depStrings) {
+		const lastDot = depStr.lastIndexOf('.')
+		const targetId = lastDot >= 0 ? depStr.slice(0, lastDot) : depStr
+		const targetProp = lastDot >= 0 ? depStr.slice(lastDot + 1) : depStr
+		const isCross = !nodeMap.has(targetId)
+		const nodeName = targetId.split('.').pop() ?? targetId
+		// hide `.diagnostics` — it's an internal delegation detail, node name alone is enough
+		const label =
+			targetProp === 'diagnostics' ? nodeName : `${nodeName}.${targetProp}`
+		const nodeInfo = nodeMap.get(targetId)
+		const sourceLocation = nodeInfo?.sourceLocation
 
-    result.push({ label, depth, isCross, sourceLocation })
+		result.push({ label, depth, isCross, sourceLocation })
 
-    // stop recursion at cross-tree boundaries and at .diagnostics edges
-    // (diagnostics delegation is plumbing, not meaningful to the user)
-    if (!isCross && targetProp !== 'diagnostics') {
-      result.push(...buildFlatDeps(store, depStr, depth + 1, new Set(visited)))
-    }
-  }
+		// stop recursion at cross-tree boundaries and at .diagnostics edges
+		// (diagnostics delegation is plumbing, not meaningful to the user)
+		if (!isCross && targetProp !== 'diagnostics') {
+			result.push(...buildFlatDeps(store, depStr, depth + 1, new Set(visited)))
+		}
+	}
 
-  return result
+	return result
 }
 
 function filterI18nDeps(deps: FlatDep[]): FlatDep[] {
-  const result: FlatDep[] = []
-  let skipDepth: number | null = null
-  for (const dep of deps) {
-    if (skipDepth !== null && dep.depth > skipDepth) continue
-    skipDepth = null
-    if (dep.label.startsWith('t.')) { skipDepth = dep.depth; continue }
-    result.push(dep)
-  }
-  return result
+	const result: FlatDep[] = []
+	let skipDepth: number | null = null
+	for (const dep of deps) {
+		if (skipDepth !== null && dep.depth > skipDepth) continue
+		skipDepth = null
+		if (dep.label.startsWith('t.')) {
+			skipDepth = dep.depth
+			continue
+		}
+		result.push(dep)
+	}
+	return result
 }
 
 const pos = computed(() => {
-  const rect = activeEntry.value?.badgeRect
-  if (!rect) return null
-  const panelWidth = 280
-  const spaceRight = window.innerWidth - rect.right
-  const left = spaceRight >= panelWidth + 10
-    ? rect.right + 10
-    : Math.max(4, rect.left - panelWidth - 10)
-  const top = Math.min(rect.top, window.innerHeight - 400)
-  return { top, left }
+	const rect = activeEntry.value?.badgeRect
+	if (!rect) return null
+	const panelWidth = 280
+	const spaceRight = window.innerWidth - rect.right
+	const left =
+		spaceRight >= panelWidth + 10
+			? rect.right + 10
+			: Math.max(4, rect.left - panelWidth - 10)
+	const top = Math.min(rect.top, window.innerHeight - 400)
+	return { top, left }
 })
 
 const d = computed(() => activeEntry.value?.descriptor as any)
 
 // ── entity tag helpers ────────────────────────────────────────────────────────
 
-type EntityTag = 'state' | 'computed' | 'async' | 'action' | 'display' | 'i18n' | null
+type EntityTag =
+	| 'state'
+	| 'computed'
+	| 'async'
+	| 'action'
+	| 'display'
+	| 'i18n'
+	| null
 
 function nodeTag(node: any): EntityTag {
-  if (!node) return null
-  if (node.kind === 'state') return 'state'
-  if (node.kind === 'async') return 'async'
-  if (node.kind === 'action') return 'action'
-  if (node.kind === 'computed') return 'computed'
-  return null
+	if (!node) return null
+	if (node.kind === 'state') return 'state'
+	if (node.kind === 'async') return 'async'
+	if (node.kind === 'action') return 'action'
+	if (node.kind === 'computed') return 'computed'
+	return null
 }
 
 const TAG_LABEL: Record<NonNullable<EntityTag>, string> = {
-  state: '◆ state',
-  computed: '⟨⟩ computed',
-  async: '⟳ async',
-  action: '▶ action',
-  display: '◻ display',
-  i18n: 'α i18n',
+	state: '◆ state',
+	computed: '⟨⟩ computed',
+	async: '⟳ async',
+	action: '▶ action',
+	display: '◻ display',
+	i18n: 'α i18n',
 }
 
 // ── dom bindings ─────────────────────────────────────────────────────────────
 
 interface WatcherEntry {
-  label: string
-  sourceLocation?: { file: string; line: number }
+	label: string
+	sourceLocation?: { file: string; line: number }
 }
 
 interface DomBinding {
-  prop: string
-  value: unknown
-  sourceNode: AnyNode | null
-  tag: EntityTag
-  editable: boolean
-  deps?: FlatDep[]
-  triggers?: string[]
-  watchers?: WatcherEntry[]
-  sourceLocation?: { file: string; line: number }
+	prop: string
+	value: unknown
+	sourceNode: AnyNode | null
+	tag: EntityTag
+	editable: boolean
+	deps?: FlatDep[]
+	triggers?: string[]
+	watchers?: WatcherEntry[]
+	sourceLocation?: { file: string; line: number }
 }
 
 const domBindings = computed((): DomBinding[] => {
-  const v = d.value
-  if (!v) return []
-  return computeDomBindings(v)
+	const v = d.value
+	if (!v) return []
+	return computeDomBindings(v)
 })
 
 function computeDomBindings(v: any): DomBinding[] {
-  const rawBindings: any[] = v.__domBindings ?? []
-  if (!rawBindings.length) return []
+	const rawBindings: any[] = v.__domBindings ?? []
+	if (!rawBindings.length) return []
 
-  const displayStore: DebugStore | undefined = v.__displayDebug
-  const rawDataRoot = (v.dataRoot as any)?.__rawNode
-  const dataStore: DebugStore | undefined = rawDataRoot?.debug
+	const displayStore: DebugStore | undefined = v.__displayDebug
+	const rawDataRoot = (v.dataRoot as any)?.__rawNode
+	const dataStore: DebugStore | undefined = rawDataRoot?.debug
 
-  return rawBindings.map(b => {
-    const sourceNode = b.sourceNode ?? null
-    const sourceId: string | undefined = sourceNode?.__debug?.id
-    const depsReaderId: string | undefined = sourceId ?? b.readerNodeId
+	return rawBindings.map((b) => {
+		const sourceNode = b.sourceNode ?? null
+		const sourceId: string | undefined = sourceNode?.__debug?.id
+		const depsReaderId: string | undefined = sourceId ?? b.readerNodeId
 
-    const deps: FlatDep[] = depsReaderId && displayStore
-      ? buildFlatDeps(displayStore, depsReaderId)
-      : []
+		const deps: FlatDep[] =
+			depsReaderId && displayStore
+				? buildFlatDeps(displayStore, depsReaderId)
+				: []
 
-    let tag: EntityTag = b.tag as EntityTag
-    let i18nSourceLocation: { file: string; line: number } | undefined
-    const tDep = deps.find((dep: FlatDep) => dep.label.startsWith('t.'))
-    if (tag === 'display' && tDep) {
-      tag = 'i18n'
-      i18nSourceLocation = tDep.sourceLocation
-    }
+		let tag: EntityTag = b.tag as EntityTag
+		let i18nSourceLocation: { file: string; line: number } | undefined
+		const tDep = deps.find((dep: FlatDep) => dep.label.startsWith('t.'))
+		if (tag === 'display' && tDep) {
+			tag = 'i18n'
+			i18nSourceLocation = tDep.sourceLocation
+		}
 
+		const triggers =
+			dataStore && sourceId
+				? [
+						...new Set(
+							dataStore.edges.value
+								.filter(
+									(e) =>
+										e.targetId === sourceId &&
+										e.targetProp === 'value' &&
+										e.reason === 'async.trigger',
+								)
+								.map((e) => {
+									const node = dataStore.nodes.value.find(
+										(n) => n.id === e.readerId,
+									)
+									return (
+										node?.label ?? e.readerId.split('.').pop() ?? e.readerId
+									)
+								}),
+						),
+					]
+				: []
 
-    const triggers = dataStore && sourceId
-      ? [...new Set(
-          dataStore.edges.value
-            .filter(e => e.targetId === sourceId && e.targetProp === 'value' && e.reason === 'async.trigger')
-            .map(e => {
-              const node = dataStore.nodes.value.find(n => n.id === e.readerId)
-              return node?.label ?? e.readerId.split('.').pop() ?? e.readerId
-            }),
-        )]
-      : []
+		const watchers: WatcherEntry[] =
+			dataStore && sourceId
+				? [
+						...new Map(
+							dataStore.edges.value
+								.filter((e) => e.readerId === sourceId && e.reason === 'watch')
+								.map((e) => {
+									const nodeInfo = dataStore.nodes.value.find(
+										(n) => n.id === e.targetId,
+									)
+									const label =
+										nodeInfo?.label ?? e.targetId.split('.').pop() ?? e.targetId
+									return [
+										label,
+										{ label, sourceLocation: nodeInfo?.sourceLocation },
+									] as [string, WatcherEntry]
+								}),
+						).values(),
+					]
+				: []
 
-    const watchers: WatcherEntry[] = dataStore && sourceId
-      ? [...new Map(
-          dataStore.edges.value
-            .filter(e => e.readerId === sourceId && e.reason === 'watch')
-            .map(e => {
-              const nodeInfo = dataStore.nodes.value.find(n => n.id === e.targetId)
-              const label = nodeInfo?.label ?? e.targetId.split('.').pop() ?? e.targetId
-              return [label, { label, sourceLocation: nodeInfo?.sourceLocation }] as [string, WatcherEntry]
-            }),
-        ).values()]
-      : []
+		// sourceNode is null for computed cells — fall back to the node's own value
+		const value = sourceNode !== null ? sourceNode.value : v.value
 
-    // sourceNode is null for computed cells — fall back to the node's own value
-    const value = sourceNode !== null ? sourceNode.value : v.value
+		const filteredDeps = tag === 'i18n' ? filterI18nDeps(deps) : deps
 
-    const filteredDeps = tag === 'i18n' ? filterI18nDeps(deps) : deps
-
-    return {
-      prop: b.prop,
-      value,
-      sourceNode,
-      tag,
-      editable: b.editable,
-      deps: filteredDeps.length ? filteredDeps : undefined,
-      triggers: triggers.length ? triggers : undefined,
-      watchers: watchers.length ? watchers : undefined,
-      sourceLocation: b.sourceLocation ?? i18nSourceLocation,
-    }
-  })
+		return {
+			prop: b.prop,
+			value,
+			sourceNode,
+			tag,
+			editable: b.editable,
+			deps: filteredDeps.length ? filteredDeps : undefined,
+			triggers: triggers.length ? triggers : undefined,
+			watchers: watchers.length ? watchers : undefined,
+			sourceLocation: b.sourceLocation ?? i18nSourceLocation,
+		}
+	})
 }
 
 // ── control kind for editable value ──────────────────────────────────────────
 
 const inputSource = computed(() => {
-  const v = d.value
-  if (v?.kind === 'input') return v.source ?? null
-  return null
+	const v = d.value
+	if (v?.kind === 'input') return v.source ?? null
+	return null
 })
 
 const inputDataRoot = computed(() => {
-  const v = d.value
-  if (v?.kind === 'input') return v.dataRoot ?? inputSource.value
-  return null
+	const v = d.value
+	if (v?.kind === 'input') return v.dataRoot ?? inputSource.value
+	return null
 })
 
 const kind = computed(() =>
-  inputSource.value && inputDataRoot.value
-    ? controlKind(inputSource.value, inputDataRoot.value)
-    : 'text',
+	inputSource.value && inputDataRoot.value
+		? controlKind(inputSource.value, inputDataRoot.value)
+		: 'text',
 )
 
 const options = computed(() =>
-  inputSource.value && inputDataRoot.value
-    ? oneOfOptions(inputSource.value, inputDataRoot.value) ?? []
-    : [],
+	inputSource.value && inputDataRoot.value
+		? (oneOfOptions(inputSource.value, inputDataRoot.value) ?? [])
+		: [],
 )
 
 const manyOptions = computed(() =>
-  inputSource.value && inputDataRoot.value
-    ? manyOfOptions(inputSource.value, inputDataRoot.value) ?? []
-    : [],
+	inputSource.value && inputDataRoot.value
+		? (manyOfOptions(inputSource.value, inputDataRoot.value) ?? [])
+		: [],
 )
 
 function setFromSelect(e: Event) {
-  const val = (e.target as HTMLSelectElement).value
-  inputSource.value?.set(val === '' ? null : val)
+	const val = (e.target as HTMLSelectElement).value
+	inputSource.value?.set(val === '' ? null : val)
 }
 
 function setFromText(e: Event) {
-  inputSource.value?.set((e.target as HTMLInputElement).value)
+	inputSource.value?.set((e.target as HTMLInputElement).value)
 }
 
 function setFromNumber(e: Event) {
-  const raw = (e.target as HTMLInputElement).value
-  inputSource.value?.set(raw === '' ? null : Number(raw))
+	const raw = (e.target as HTMLInputElement).value
+	inputSource.value?.set(raw === '' ? null : Number(raw))
 }
 
 function setFromCheckbox(e: Event) {
-  inputSource.value?.set((e.target as HTMLInputElement).checked)
+	inputSource.value?.set((e.target as HTMLInputElement).checked)
 }
 
 function isSelected(option: unknown): boolean {
-  return Array.isArray(inputSource.value?.value) && (inputSource.value!.value as unknown[]).includes(option)
+	return (
+		Array.isArray(inputSource.value?.value) &&
+		(inputSource.value!.value as unknown[]).includes(option)
+	)
 }
 
 function toggleMany(option: unknown, e: Event) {
-  const checked = (e.target as HTMLInputElement).checked
-  const current = Array.isArray(inputSource.value?.value) ? [...(inputSource.value!.value as unknown[])] : []
-  inputSource.value?.set(
-    checked ? [...current, option] : current.filter(i => i !== option)
-  )
+	const checked = (e.target as HTMLInputElement).checked
+	const current = Array.isArray(inputSource.value?.value)
+		? [...(inputSource.value!.value as unknown[])]
+		: []
+	inputSource.value?.set(
+		checked ? [...current, option] : current.filter((i) => i !== option),
+	)
 }
 
 // ── handlers ─────────────────────────────────────────────────────────────────
 
 interface HandlerEntry {
-  event: string
-  action: ActionNode
+	event: string
+	action: ActionNode
 }
 
 const handlers = computed((): HandlerEntry[] => {
-  const v = d.value
-  if (!v?.handlers) return []
-  return Object.entries(v.handlers)
-    .filter(([, h]) => h != null)
-    .map(([event, action]) => ({ event, action: action as ActionNode }))
+	const v = d.value
+	if (!v?.handlers) return []
+	return Object.entries(v.handlers)
+		.filter(([, h]) => h != null)
+		.map(([event, action]) => ({ event, action: action as ActionNode }))
 })
 
 // ── ui state rows ─────────────────────────────────────────────────────────────
 
 interface StateRow {
-  label: string
-  value: unknown
-  node?: { value: unknown; set: (v: unknown) => void }
+	label: string
+	value: unknown
+	node?: { value: unknown; set: (v: unknown) => void }
 }
 
 function makeRow(label: string, node: any): StateRow | null {
-  if (!node) return null
-  const value = node.value ?? false
-  if (value === undefined) return null
-  return { label, value, node: typeof node.set === 'function' ? node : undefined }
+	if (!node) return null
+	const value = node.value ?? false
+	if (value === undefined) return null
+	return {
+		label,
+		value,
+		node: typeof node.set === 'function' ? node : undefined,
+	}
 }
 
 const uiStateRows = computed((): StateRow[] => {
-  const v = d.value
-  if (v?.kind !== 'input') return []
+	const v = d.value
+	if (v?.kind !== 'input') return []
 
-  const rows: (StateRow | null)[] = [
-    makeRow('touched', v.touched),
-    makeRow('focused', v.focused),
-    makeRow('dirty', v.dirty),
-    makeRow('disabled', v.disabled),
-  ]
+	const rows: (StateRow | null)[] = [
+		makeRow('touched', v.touched),
+		makeRow('focused', v.focused),
+		makeRow('dirty', v.dirty),
+		makeRow('disabled', v.disabled),
+	]
 
-  if (v.showError?.value && v.errorMessage?.value) {
-    rows.push({ label: 'errorMessage', value: v.errorMessage.value })
-  }
+	if (v.showError?.value && v.errorMessage?.value) {
+		rows.push({ label: 'errorMessage', value: v.errorMessage.value })
+	}
 
-  return rows.filter((r): r is StateRow => r !== null && r.value !== undefined)
+	return rows.filter((r): r is StateRow => r !== null && r.value !== undefined)
 })
 
 // ── validation rows ───────────────────────────────────────────────────────────
 
 interface ValidationRow {
-  label: string
-  value: unknown
+	label: string
+	value: unknown
 }
 
 const validationRows = computed((): ValidationRow[] => {
-  const v = d.value
-  if (!v || v.kind !== 'input') return []
+	const v = d.value
+	if (!v || v.kind !== 'input') return []
 
-  const src = v.source
-  if (!src) return []
+	const src = v.source
+	if (!src) return []
 
-  const rows: ValidationRow[] = []
-  if (src.valid !== undefined) rows.push({ label: 'valid', value: src.valid?.value })
+	const rows: ValidationRow[] = []
+	if (src.valid !== undefined)
+		rows.push({ label: 'valid', value: src.valid?.value })
 
-  const errs = src.errors?.value
-  if (Array.isArray(errs) && errs.length) {
-    rows.push({ label: 'errors', value: errs.map((e: any) => e.message).join(', ') })
-  }
+	const errs = src.errors?.value
+	if (Array.isArray(errs) && errs.length) {
+		rows.push({
+			label: 'errors',
+			value: errs.map((e: any) => e.message).join(', '),
+		})
+	}
 
-  return rows
+	return rows
 })
 
 // ── open in editor ────────────────────────────────────────────────────────────
 
 function openInEditor(file: string, line: number, col = 1) {
-  window.open(`vscode://file${file}:${line}:${col}`)
+	window.open(`vscode://file${file}:${line}:${col}`)
 }
 
-const componentSourceLocation = computed(() => activeEntry.value?.sourceLocation ?? null)
+const componentSourceLocation = computed(
+	() => activeEntry.value?.sourceLocation ?? null,
+)
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function stringify(v: unknown): string {
-  if (v === null) return 'null'
-  if (v === undefined) return 'undefined'
-  try { return JSON.stringify(v) } catch { return String(v) }
+	if (v === null) return 'null'
+	if (v === undefined) return 'undefined'
+	try {
+		return JSON.stringify(v)
+	} catch {
+		return String(v)
+	}
 }
 
 function onToggleUiRow(row: StateRow, checked: boolean) {
-  if (row.label === 'focused') {
-    if (checked) activeEntry.value?.focusFn()
-    else (document.activeElement as HTMLElement)?.blur()
-  } else {
-    row.node!.set(checked)
-  }
+	if (row.label === 'focused') {
+		if (checked) activeEntry.value?.focusFn()
+		else (document.activeElement as HTMLElement)?.blur()
+	} else {
+		row.node!.set(checked)
+	}
 }
 
 function nodeLabel(v: any): string {
-  if (v?.kind === 'input') return v.source?.label ?? v.source?.id ?? 'Input'
-  if (v?.kind === 'button') return v.text ?? v.id ?? 'Button'
-  return v?.label ?? v?.id ?? 'Node'
+	if (v?.kind === 'input') return v.source?.label ?? v.source?.id ?? 'Input'
+	if (v?.kind === 'button') return v.text ?? v.id ?? 'Button'
+	return v?.label ?? v?.id ?? 'Node'
 }
 </script>
 

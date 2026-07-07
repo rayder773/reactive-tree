@@ -1,4 +1,4 @@
-import { createI18nPlugin } from "../../../../../src";
+import { createI18nPlugin } from '../../../../../src'
 
 export const i18nPlugin = createI18nPlugin({
 	defaultLocale: 'en',

@@ -32,10 +32,10 @@
 </template>
 
 <script setup lang="ts">
+import AppButton from '../../ui/AppButton.vue'
+import AppFileInput from '../../ui/AppFileInput.vue'
+import AppSelect from '../../ui/AppSelect.vue'
+import AppTable from '../../ui/AppTable.vue'
 import { wizardDisplay } from './display'
 import { wizard } from './tree'
-import AppSelect from '../../ui/AppSelect.vue'
-import AppFileInput from '../../ui/AppFileInput.vue'
-import AppButton from '../../ui/AppButton.vue'
-import AppTable from '../../ui/AppTable.vue'
 </script>

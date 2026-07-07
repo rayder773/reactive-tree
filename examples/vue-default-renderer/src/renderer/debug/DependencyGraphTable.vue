@@ -2,8 +2,8 @@
 import type { DependencyEdge } from '../../../../../src'
 
 defineProps<{
-  edges: readonly DependencyEdge[]
-  crossEdges?: readonly DependencyEdge[]
+	edges: readonly DependencyEdge[]
+	crossEdges?: readonly DependencyEdge[]
 }>()
 </script>
 

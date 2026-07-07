@@ -5,9 +5,9 @@ import NodeRenderer from './NodeRenderer.vue'
 import { nodeTitle, recordEntries } from './rendererUtils'
 
 defineProps<{
-  node: RecordNode<AnyNode>
-  root: AnyNode
-  label?: string
+	node: RecordNode<AnyNode>
+	root: AnyNode
+	label?: string
 }>()
 </script>
 

@@ -6,26 +6,34 @@ import { fileTypeAccept } from '../renderer/rendererUtils'
 import { useInputBind } from './useInputBind'
 
 const props = defineProps<{
-  node?: InputNode | null
+	node?: InputNode | null
 }>()
 
-const { onFocus, onBlur, showError, errorMessage, disabled: isDisabled } = useInputBind(props.node)
+const {
+	onFocus,
+	onBlur,
+	showError,
+	errorMessage,
+	disabled: isDisabled,
+} = useInputBind(props.node)
 
 const nodeLabel = computed(() => (props.node?.source as any)?.label ?? null)
-const fileName = computed(() => (props.node?.source?.value as any)?.name ?? null)
+const fileName = computed(
+	() => (props.node?.source?.value as any)?.name ?? null,
+)
 const accept = computed(() => {
-  const src = props.node?.source
-  return src ? fileTypeAccept(src as any) : undefined
+	const src = props.node?.source
+	return src ? fileTypeAccept(src as any) : undefined
 })
 const acceptHint = computed(() => {
-  if (!accept.value) return null
-  return accept.value.split(',').join(', ')
+	if (!accept.value) return null
+	return accept.value.split(',').join(', ')
 })
 
 async function onChange(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  props.node?.source?.set(file ? await fileToData(file) : null)
-  props.node?.touched.set(true)
+	const file = (event.target as HTMLInputElement).files?.[0]
+	props.node?.source?.set(file ? await fileToData(file) : null)
+	props.node?.touched.set(true)
 }
 </script>
 

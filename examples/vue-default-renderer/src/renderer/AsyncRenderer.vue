@@ -5,13 +5,13 @@ import DiagnosticsView from './DiagnosticsView.vue'
 import { nodeTitle, stringifyValue } from './rendererUtils'
 
 const props = defineProps<{
-  node: AsyncNode<unknown>
-  label?: string
+	node: AsyncNode<unknown>
+	label?: string
 }>()
 
 const title = computed(() => nodeTitle(props.node, props.label || 'async'))
 const isPending = computed(
-  () => props.node.status === 'loading' || props.node.status === 'revalidating',
+	() => props.node.status === 'loading' || props.node.status === 'revalidating',
 )
 </script>
 

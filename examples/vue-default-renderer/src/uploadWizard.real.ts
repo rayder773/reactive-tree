@@ -1,5 +1,20 @@
-import { asyncNode, type AsyncNode, createTree, type FileData, fileType, oneOf, state, type StateNode, when } from "../../../src";
-import { createSimAdapter, error, loading, success } from '../../../src/adapters/sim'
+import {
+	type AsyncNode,
+	asyncNode,
+	createTree,
+	type FileData,
+	fileType,
+	oneOf,
+	type StateNode,
+	state,
+	when,
+} from '../../../src'
+import {
+	createSimAdapter,
+	error,
+	loading,
+	success,
+} from '../../../src/adapters/sim'
 
 export const wizard = createTree({
 	currentStep: state<UploadStep>('upload', {
@@ -48,15 +63,19 @@ type UploadStep = 'upload' | 'mapping' | 'result'
 
 const env = (import.meta as { env?: Record<string, string> }).env
 
-createSimAdapter(wizard, [
-	{
-		node: wizard.uploadedFileId,
-		activeScenario: env?.VITE_SIM_uploadedFileId,
-		scenarios: {
-			success: success({ id: 'file-abc-123' }, { delay: 1500 }),
-			slow: success({ id: 'file-abc-123' }, { delay: 4000 }),
-			error: error('Failed to upload file', { status: 500 }),
-			loading: loading(),
+createSimAdapter(
+	wizard,
+	[
+		{
+			node: wizard.uploadedFileId,
+			activeScenario: env?.VITE_SIM_uploadedFileId,
+			scenarios: {
+				success: success({ id: 'file-abc-123' }, { delay: 1500 }),
+				slow: success({ id: 'file-abc-123' }, { delay: 4000 }),
+				error: error('Failed to upload file', { status: 500 }),
+				loading: loading(),
+			},
 		},
-	},
-], env?.VITE_SIM_SCENARIO)
+	],
+	env?.VITE_SIM_SCENARIO,
+)

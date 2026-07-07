@@ -3,7 +3,7 @@ import type { Diagnostic } from '../../../../src'
 import { diagnosticsByLevel } from './rendererUtils'
 
 const props = defineProps<{
-  diagnostics: readonly Diagnostic[]
+	diagnostics: readonly Diagnostic[]
 }>()
 </script>
 

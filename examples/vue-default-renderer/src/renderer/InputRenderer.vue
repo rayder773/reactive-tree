@@ -2,75 +2,93 @@
 import { computed } from 'vue'
 import type { AnyNode } from '../../../../src'
 import type { InputNode } from '../../../../src/display'
-import {
-  controlKind,
-  fileTypeAccept,
-  manyOfOptions,
-  nodeTitle,
-  oneOfOptions,
-  stringifyValue,
-} from './rendererUtils'
 import { fileToData } from './fileUtils'
+import {
+	controlKind,
+	fileTypeAccept,
+	manyOfOptions,
+	nodeTitle,
+	oneOfOptions,
+	stringifyValue,
+} from './rendererUtils'
 
 const props = defineProps<{
-  node: InputNode
-  root: AnyNode
-  label?: string
+	node: InputNode
+	root: AnyNode
+	label?: string
 }>()
 
 const source = computed(() => props.node.source ?? null)
-const dataRoot = computed((): AnyNode => (props.node as any).dataRoot ?? props.root)
+const dataRoot = computed(
+	(): AnyNode => (props.node as any).dataRoot ?? props.root,
+)
 const title = computed(() => nodeTitle(props.node, props.label || 'input'))
 const asNode = (s: NonNullable<typeof source.value>) => s as unknown as AnyNode
-const kind = computed(() => source.value ? controlKind(asNode(source.value), dataRoot.value) : 'text')
-const accept = computed(() => source.value ? fileTypeAccept(asNode(source.value)) : undefined)
-const options = computed(() => source.value ? oneOfOptions(asNode(source.value), dataRoot.value) ?? [] : [])
-const manyOptions = computed(() => source.value ? manyOfOptions(asNode(source.value), dataRoot.value) ?? [] : [])
+const kind = computed(() =>
+	source.value ? controlKind(asNode(source.value), dataRoot.value) : 'text',
+)
+const accept = computed(() =>
+	source.value ? fileTypeAccept(asNode(source.value)) : undefined,
+)
+const options = computed(() =>
+	source.value
+		? (oneOfOptions(asNode(source.value), dataRoot.value) ?? [])
+		: [],
+)
+const manyOptions = computed(() =>
+	source.value
+		? (manyOfOptions(asNode(source.value), dataRoot.value) ?? [])
+		: [],
+)
 
 function onFocus() {
-  props.node.focused.set(true)
+	props.node.focused.set(true)
 }
 
 function onBlur() {
-  props.node.focused.set(false)
-  props.node.touched.set(true)
+	props.node.focused.set(false)
+	props.node.touched.set(true)
 }
 
 function setFromText(event: Event) {
-  source.value?.set((event.target as HTMLInputElement).value)
+	source.value?.set((event.target as HTMLInputElement).value)
 }
 
 function setFromNumber(event: Event) {
-  const raw = (event.target as HTMLInputElement).value
-  source.value?.set(raw === '' ? null : Number(raw))
+	const raw = (event.target as HTMLInputElement).value
+	source.value?.set(raw === '' ? null : Number(raw))
 }
 
 function setFromCheckbox(event: Event) {
-  source.value?.set((event.target as HTMLInputElement).checked)
+	source.value?.set((event.target as HTMLInputElement).checked)
 }
 
 function setFromSelect(event: Event) {
-  const selected = (event.target as HTMLSelectElement).value
-  source.value?.set(selected === '' ? null : selected)
+	const selected = (event.target as HTMLSelectElement).value
+	source.value?.set(selected === '' ? null : selected)
 }
 
 async function setFromFile(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  source.value?.set(file ? await fileToData(file) : null)
+	const file = (event.target as HTMLInputElement).files?.[0]
+	source.value?.set(file ? await fileToData(file) : null)
 }
 
 function isSelected(option: unknown): boolean {
-  return Array.isArray(source.value?.value) && source.value!.value.includes(option)
+	return (
+		Array.isArray(source.value?.value) && source.value!.value.includes(option)
+	)
 }
 
 function toggleMany(option: unknown, event: Event) {
-  const checked = (event.target as HTMLInputElement).checked
-  const current = Array.isArray(source.value?.value) ? [...source.value!.value] : []
-  if (checked && !current.includes(option)) {
-    source.value?.set([...current, option])
-  } else if (!checked) {
-    source.value?.set(current.filter((item: unknown) => item !== option))
-  }
+	const checked = (event.target as HTMLInputElement).checked
+	const current = Array.isArray(source.value?.value)
+		? [...source.value!.value]
+		: []
+	if (checked && !current.includes(option)) {
+		source.value?.set([...current, option])
+	} else if (!checked) {
+		source.value?.set(current.filter((item: unknown) => item !== option))
+	}
 }
 </script>
 
