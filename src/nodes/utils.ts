@@ -83,7 +83,7 @@ export function nodeValue(node: AnyNode | undefined): unknown {
 }
 
 export function nodeDiagnostics(node: AnyNode | undefined): Diagnostic[] {
-	return node?.diagnostics.value ?? []
+	return node?.diagnostics?.value ?? []
 }
 
 export function childPath(parentPath: string, key: string): string {

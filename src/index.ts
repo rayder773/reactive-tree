@@ -43,11 +43,19 @@ export type {
 	InputConfig,
 	InputGetter,
 	InputNode,
+	ListColumnDef,
+	ListDisplayConfig,
+	ListDisplayNode,
+	ListDisplayRow,
+	ListRowDef,
+	ListTableSubConfig,
+	ListVirtualizeConfig,
 	TableColumn,
 	TableConfig,
 	TableNode,
 	TableRow,
 	TextGetter,
+	VirtualDisplayState,
 } from './display'
 export {
 	button,
@@ -56,9 +64,22 @@ export {
 	dynamicRows,
 	form,
 	input,
+	listDisplay,
 	table,
 	text,
 } from './display'
+export type { EntityListConfig, EntityListNode, FetchMode } from './createEntityList'
+export { createEntityList } from './createEntityList'
+export type { EntityStoreNode } from './createEntityStore'
+export { createEntityStore } from './createEntityStore'
+export type {
+	CursorPaginationConfig,
+	CursorPaginationSpec,
+	PagePaginationConfig,
+	PagePaginationSpec,
+	PaginationSpec,
+} from './paginate'
+export { paginate } from './paginate'
 export { asyncNode } from './nodes/async'
 export { computed } from './nodes/computed'
 export { list } from './nodes/list'

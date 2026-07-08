@@ -19,3 +19,14 @@ export type {
 export { dynamicRows, table } from './table'
 export type { TextGetter } from './text'
 export { text } from './text'
+export type {
+	ListColumnDef,
+	ListDisplayConfig,
+	ListDisplayNode,
+	ListDisplayRow,
+	ListRowDef,
+	ListTableSubConfig,
+	ListVirtualizeConfig,
+	VirtualDisplayState,
+} from './list'
+export { listDisplay } from './list'
