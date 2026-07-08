@@ -254,6 +254,7 @@ function transformTs(
 	}
 
 	const TRACKED_TEXT_PROPS = new Set(['label', 'header', 'text'])
+	const TRACKED_GETTER_PROPS = new Set(['disabled', 'showError', 'errorMessage', 'dirty'])
 
 	walkAst(ast.program, (node) => {
 		if (node.type !== 'ObjectProperty') return
@@ -286,6 +287,30 @@ function transformTs(
 
 		ms.appendLeft(fn.start!, 'Object.assign(')
 		ms.appendLeft(fn.end!, `, { ${extras.join(', ')} })`)
+	})
+
+	// ── Pass 2d: annotate getter functions in tracked config properties ─────────
+	// Injects __source on arrow functions in properties like disabled, showError,
+	// errorMessage, dirty so the inspector can link to their definition.
+
+	walkAst(ast.program, (node) => {
+		if (node.type !== 'ObjectProperty') return
+		const propKey =
+			node.key.type === 'Identifier' ? node.key.name : node.key.value
+		if (!TRACKED_GETTER_PROPS.has(propKey)) return
+
+		const fn = node.value
+		if (
+			fn.type !== 'ArrowFunctionExpression' &&
+			fn.type !== 'FunctionExpression'
+		)
+			return
+
+		const line: number = node.loc!.start.line
+		const col: number = node.loc!.start.column + 1
+		const sourceProp = `__source: { file: ${JSON.stringify(absFile)}, line: ${line}, col: ${col} }`
+		ms.appendLeft(fn.start!, 'Object.assign(')
+		ms.appendLeft(fn.end!, `, { ${sourceProp} })`)
 	})
 
 	// ── Pass 2c: annotate dynamicRows source and mapper callbacks ───────────────

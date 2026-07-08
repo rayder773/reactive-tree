@@ -62,6 +62,7 @@ function buildInputChild(
 			path,
 			kind: 'computed',
 			active: true,
+			sourceLocation: (getter as any).__source,
 		})
 		Object.assign(node, emptyDiagnosticsRefs)
 		return node
@@ -162,6 +163,11 @@ export function input(config: InputConfig = {}): NodeSpec<InputNode> {
 			}
 
 			inputNodeRef.current = node
+
+			Object.defineProperty(node, '__displayDebug', {
+				value: context.debug,
+				enumerable: false,
+			})
 
 			Object.defineProperty(node, '__domBindings', {
 				enumerable: false,

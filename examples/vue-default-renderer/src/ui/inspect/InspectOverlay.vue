@@ -342,6 +342,8 @@ interface StateRow {
 	label: string
 	value: unknown
 	node?: { value: unknown; set: (v: unknown) => void }
+	sourceLocation?: { file: string; line: number }
+	deps?: FlatDep[]
 }
 
 function makeRow(label: string, node: any): StateRow | null {
@@ -359,11 +361,27 @@ const uiStateRows = computed((): StateRow[] => {
 	const v = d.value
 	if (v?.kind !== 'input') return []
 
+	const displayStore: DebugStore | undefined = v.__displayDebug
+	const rawDataRoot = (v.dataRoot as any)?.__rawNode
+	const dataStore: DebugStore | undefined = rawDataRoot?.debug
+
+	function withDeps(row: StateRow | null, node: any): StateRow | null {
+		if (!row || !displayStore) return row
+		const debugInfo = (node as any)?.__debug
+		if (!debugInfo) return row
+		const deps = buildFlatDeps(displayStore, debugInfo.id, dataStore)
+		return {
+			...row,
+			sourceLocation: debugInfo.sourceLocation,
+			deps: deps.length ? deps : undefined,
+		}
+	}
+
 	const rows: (StateRow | null)[] = [
 		makeRow('touched', v.touched),
 		makeRow('focused', v.focused),
 		makeRow('dirty', v.dirty),
-		makeRow('disabled', v.disabled),
+		withDeps(makeRow('disabled', v.disabled), v.disabled),
 	]
 
 	if (v.showError?.value && v.errorMessage?.value) {
@@ -588,21 +606,50 @@ function nodeLabel(v: any): string {
       <!-- ui state (inputs only) -->
       <div v-if="uiStateRows.length" class="inspect-section">
         <div class="inspect-section-label">ui state</div>
-        <div v-for="row in uiStateRows" :key="row.label" class="inspect-row">
-          <span class="inspect-key">{{ row.label }}</span>
-          <label v-if="row.node && typeof row.value === 'boolean'" class="inspect-toggle">
-            <input
-              type="checkbox"
-              :checked="Boolean(row.node.value)"
-              @change="onToggleUiRow(row, ($event.target as HTMLInputElement).checked)"
-            />
-            <span :class="row.node.value ? 'is-true' : 'is-false'">{{ row.node.value }}</span>
-          </label>
-          <span
-            v-else
-            class="inspect-val"
-            :class="{ 'is-true': row.value === true, 'is-false': row.value === false }"
-          >{{ stringify(row.value) }}</span>
+        <div v-for="row in uiStateRows" :key="row.label" class="inspect-binding">
+          <div class="inspect-row">
+            <span class="inspect-key">{{ row.label }}</span>
+            <label v-if="row.node && typeof row.value === 'boolean'" class="inspect-toggle">
+              <input
+                type="checkbox"
+                :checked="Boolean(row.node.value)"
+                @change="onToggleUiRow(row, ($event.target as HTMLInputElement).checked)"
+              />
+              <span :class="row.node.value ? 'is-true' : 'is-false'">{{ row.node.value }}</span>
+            </label>
+            <span
+              v-else
+              class="inspect-val"
+              :class="{ 'is-true': row.value === true, 'is-false': row.value === false }"
+            >{{ stringify(row.value) }}</span>
+            <a
+              v-if="row.sourceLocation"
+              class="source-link"
+              href="#"
+              @click.prevent="openInEditor(row.sourceLocation.file, row.sourceLocation.line)"
+              title="Open in editor"
+            >↗</a>
+          </div>
+          <div v-if="row.deps?.length" class="inspect-deps">
+            <div
+              v-for="(dep, i) in row.deps"
+              :key="i"
+              :style="{ paddingLeft: (dep.depth * 10) + 'px' }"
+              :class="dep.isCross ? 'dep-cross' : ''"
+            >
+              ← {{ dep.label }}
+              <span v-if="dep.tag" :class="['entity-tag', `tag-${dep.tag}`]">
+                {{ TAG_LABEL[dep.tag] }}
+              </span>
+              <a
+                v-if="dep.sourceLocation"
+                class="source-link"
+                href="#"
+                @click.prevent="openInEditor(dep.sourceLocation.file, dep.sourceLocation.line)"
+                title="Open in editor"
+              >↗</a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
