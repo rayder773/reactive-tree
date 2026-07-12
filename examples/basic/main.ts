@@ -29,14 +29,16 @@ class UserWorkflow {
 	) {}
 
 	async loadUser(userId: string): Promise<void> {
+		const requestKey = getUserRequestKey(userId)
+
 		await this.loading.run(async () => {
 			await this.abort.run(async (signal) => {
 				await delay(250, signal)
 				const user = { id: userId, name: 'Ada Lovelace' }
 				this.saveUser(user)
 				this.saveTodos(user.id)
-			}, 'load-user')
-		}, 'load-user')
+			}, requestKey)
+		}, requestKey)
 	}
 
 	async restartUserLoad(): Promise<void> {
@@ -76,13 +78,16 @@ const basicRuntimeExample: ExampleDefinition = {
 	mount({ element }): ExampleInstance {
 		const graph = dependencyGraphPlugin()
 		const app = createAppRuntime({ plugins: [graph] })
-		const users = app.createStore<User>()
-		const todos = app.createStore<Todo[]>()
+		const users = app.createStore<User>({ name: 'UsersStore' })
+		const todos = app.createStore<Todo[]>({ name: 'TodosStore' })
 		const loading = app.createLoadingService()
 		const abort = app.createAbortService()
 		const pagination = app.createPaginationService()
 		const workflow = app.register(
 			new UserWorkflow(users, todos, loading, abort, pagination),
+			{
+				dependencies: [users, todos, loading, abort, pagination],
+			},
 		)
 
 		element.innerHTML = `
@@ -154,10 +159,10 @@ const basicRuntimeExample: ExampleDefinition = {
 
 			output.textContent = JSON.stringify(
 				{
-					loading: loading.get('load-user'),
+					loading: loading.get(getUserRequestKey('user-1')),
 					user: users.get('user-1'),
 					pagination: pagination.get('todos'),
-					graphNodes: graph.getSnapshot().nodes.map((node) => node.label),
+					graph: graph.getSnapshot(),
 				},
 				null,
 				2,
@@ -167,6 +172,10 @@ const basicRuntimeExample: ExampleDefinition = {
 }
 
 export default basicRuntimeExample
+
+function getUserRequestKey(userId: string): string {
+	return `load-user:${userId}`
+}
 
 function delay(ms: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {

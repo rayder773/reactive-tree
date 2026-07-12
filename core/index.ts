@@ -2,6 +2,7 @@ export {
 	type DependencyGraphEdge,
 	type DependencyGraphNode,
 	type DependencyGraphPlugin,
+	type DependencyGraphPluginOptions,
 	type DependencyGraphSnapshot,
 	dependencyGraphPlugin,
 } from './plugins/dependencyGraphPlugin'
@@ -31,6 +32,9 @@ export type {
 export type {
 	AppRuntimeOptions,
 	AsyncExecutor,
+	CreateStoreOptions,
+	DependencyDeclarationOptions,
+	DependencyTarget,
 	RegisterOptions,
 } from './types/runtime'
 export {

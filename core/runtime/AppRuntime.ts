@@ -15,7 +15,13 @@ import type {
 	RuntimePlugin,
 	StoreEventContext,
 } from '../types/lifecycle'
-import type { AppRuntimeOptions, RegisterOptions } from '../types/runtime'
+import type {
+	AppRuntimeOptions,
+	CreateStoreOptions,
+	DependencyDeclarationOptions,
+	DependencyTarget,
+	RegisterOptions,
+} from '../types/runtime'
 import type { Store as StoreContract, StoreKey } from '../types/store'
 import { normalizeStoreKey } from '../utils/keys'
 
@@ -34,29 +40,44 @@ export class AppRuntime {
 		this.emit('runtimeCreated', { runtime: this })
 	}
 
-	createStore<T>(): StoreContract<T> {
+	createStore<T>(options: CreateStoreOptions = {}): StoreContract<T> {
 		const store = new Store<T>()
 		const wrapped = this.wrapStore(store)
-		this.register(wrapped, { name: 'Store' })
+		this.register(wrapped, { name: options.name ?? 'Store' })
 		return wrapped
 	}
 
-	createLoadingService(store = this.createStore<LoadingStatus>()) {
-		return this.register(new LoadingService(store, this.executeAsync), {
-			name: 'LoadingService',
-		})
+	createLoadingService(
+		store = this.createStore<LoadingStatus>({ name: 'LoadingStore' }),
+	) {
+		const service = this.register(
+			new LoadingService(store, this.executeAsync),
+			{
+				name: 'LoadingService',
+			},
+		)
+		this.declareDependency(service, store, { type: 'uses' })
+		return service
 	}
 
-	createAbortService(store = this.createStore<AbortController>()) {
-		return this.register(new AbortService(store, this.executeAsync), {
+	createAbortService(
+		store = this.createStore<AbortController>({ name: 'AbortStore' }),
+	) {
+		const service = this.register(new AbortService(store, this.executeAsync), {
 			name: 'AbortService',
 		})
+		this.declareDependency(service, store, { type: 'uses' })
+		return service
 	}
 
-	createPaginationService(store = this.createStore<PaginationState>()) {
-		return this.register(new PaginationService(store), {
+	createPaginationService(
+		store = this.createStore<PaginationState>({ name: 'PaginationStore' }),
+	) {
+		const service = this.register(new PaginationService(store), {
 			name: 'PaginationService',
 		})
+		this.declareDependency(service, store, { type: 'uses' })
+		return service
 	}
 
 	register<T extends object>(instance: T, options: RegisterOptions = {}): T {
@@ -70,7 +91,23 @@ export class AppRuntime {
 		const wrapped = this.wrapObject(original)
 		this.emit('afterRegister', context)
 
+		for (const dependency of options.dependencies ?? []) {
+			this.declareDependency(wrapped, dependency, { type: 'uses' })
+		}
+
 		return wrapped as T
+	}
+
+	declareDependency(
+		from: DependencyTarget,
+		to: DependencyTarget,
+		options: DependencyDeclarationOptions = {},
+	): void {
+		this.emitCustomEvent('dependencyDeclared', {
+			from: this.resolveDependencyLabel(from),
+			to: this.resolveDependencyLabel(to),
+			type: options.type ?? 'uses',
+		})
 	}
 
 	dispose(): void {
@@ -125,6 +162,10 @@ export class AppRuntime {
 				const value = Reflect.get(target, property, receiver)
 
 				if (typeof property !== 'string' || typeof value !== 'function') {
+					return value
+				}
+
+				if (!isPrototypeMethod(target, property)) {
 					return value
 				}
 
@@ -354,6 +395,15 @@ export class AppRuntime {
 		return instance.constructor.name || 'AnonymousObject'
 	}
 
+	private resolveDependencyLabel(target: DependencyTarget): string {
+		if (typeof target === 'string') {
+			return target
+		}
+
+		const original = this.unwrap(target)
+		return this.names.get(original) ?? this.inferName(original)
+	}
+
 	private unwrap<T extends object>(instance: T): T {
 		if (this.isProxy(instance)) {
 			return Reflect.get(instance, PROXY_MARKER) as T
@@ -386,6 +436,17 @@ function isPromiseLike(value: unknown): value is Promise<unknown> {
 		'then' in value &&
 		typeof value.then === 'function'
 	)
+}
+
+function isPrototypeMethod(target: object, property: string): boolean {
+	const prototype = Object.getPrototypeOf(target)
+
+	if (prototype === null) {
+		return false
+	}
+
+	const descriptor = Object.getOwnPropertyDescriptor(prototype, property)
+	return typeof descriptor?.value === 'function'
 }
 
 type LoadingStatus =

@@ -70,10 +70,55 @@ describe('services', () => {
 })
 
 describe('AppRuntime', () => {
-	it('wraps registered objects and tracks nested method calls', () => {
+	it('declares service and store dependencies before methods run', () => {
 		const graph = dependencyGraphPlugin()
 		const app = createAppRuntime({ plugins: [graph] })
-		const store = app.createStore<number>()
+
+		app.createLoadingService()
+
+		const snapshot = graph.getSnapshot()
+		const loadingNode = snapshot.nodes.find(
+			(node) => node.label === 'LoadingService',
+		)
+		const storeNode = snapshot.nodes.find(
+			(node) => node.label === 'LoadingStore',
+		)
+
+		expect(loadingNode?.kind).toBe('object')
+		expect(storeNode?.kind).toBe('object')
+		expect(
+			snapshot.edges.find(
+				(edge) => edge.from === loadingNode?.id && edge.to === storeNode?.id,
+			)?.type,
+		).toBe('uses')
+	})
+
+	it('declares registered object dependencies before methods run', () => {
+		const graph = dependencyGraphPlugin()
+		const app = createAppRuntime({ plugins: [graph] })
+		const users = app.createStore<{ id: string }>({ name: 'UsersStore' })
+
+		class UserWorkflow {}
+
+		app.register(new UserWorkflow(), { dependencies: [users] })
+
+		const snapshot = graph.getSnapshot()
+		const workflowNode = snapshot.nodes.find(
+			(node) => node.label === 'UserWorkflow',
+		)
+		const usersNode = snapshot.nodes.find((node) => node.label === 'UsersStore')
+
+		expect(
+			snapshot.edges.find(
+				(edge) => edge.from === workflowNode?.id && edge.to === usersNode?.id,
+			)?.type,
+		).toBe('uses')
+	})
+
+	it('wraps registered objects and builds an aggregated dependency graph', () => {
+		const graph = dependencyGraphPlugin()
+		const app = createAppRuntime({ plugins: [graph] })
+		const store = app.createStore<number>({ name: 'CounterStore' })
 
 		class CounterActions {
 			increment() {
@@ -88,13 +133,75 @@ describe('AppRuntime', () => {
 
 		const actions = app.register(new CounterActions())
 		actions.increment()
+		actions.increment()
 
-		const labels = graph.getSnapshot().nodes.map((node) => node.label)
+		const snapshot = graph.getSnapshot()
+		const labels = snapshot.nodes.map((node) => node.label)
+		const incrementNode = snapshot.nodes.find(
+			(node) => node.label === 'CounterActions.increment',
+		)
+		const saveNode = snapshot.nodes.find(
+			(node) => node.label === 'CounterActions.save',
+		)
 
 		expect(labels).toContain('CounterActions.increment')
 		expect(labels).toContain('CounterActions.save')
-		expect(labels).toContain('Store.get(count)')
-		expect(labels).toContain('Store.set(count)')
-		expect(store.get('count')).toBe(1)
+		expect(labels).toContain('CounterStore.get(count)')
+		expect(labels).toContain('CounterStore.set(count = 1)')
+		expect(labels).toContain('CounterStore.set(count = 2)')
+		expect(incrementNode?.count).toBe(2)
+		expect(saveNode?.count).toBe(2)
+		expect(
+			snapshot.edges.find(
+				(edge) => edge.from === incrementNode?.id && edge.to === saveNode?.id,
+			)?.count,
+		).toBe(2)
+		expect(store.get('count')).toBe(2)
+	})
+
+	it('does not track injected function fields as object methods', async () => {
+		const graph = dependencyGraphPlugin()
+		const app = createAppRuntime({ plugins: [graph] })
+		const loading = app.createLoadingService()
+
+		await loading.run(() => undefined, 'users')
+
+		const labels = graph.getSnapshot().nodes.map((node) => node.label)
+
+		expect(labels).toContain('LoadingService.run')
+		expect(labels).toContain('LoadingService.run callback')
+		expect(labels).not.toContain('LoadingService.executeAsync')
+	})
+
+	it('tracks concrete service store keys', async () => {
+		const graph = dependencyGraphPlugin()
+		const app = createAppRuntime({ plugins: [graph] })
+		const loading = app.createLoadingService()
+
+		await loading.run(() => undefined, 'load-user:user-1')
+		loading.get('load-user:user-1')
+
+		const labels = graph.getSnapshot().nodes.map((node) => node.label)
+
+		expect(labels).toContain('LoadingStore.set(load-user:user-1 = loading)')
+		expect(labels).toContain('LoadingStore.set(load-user:user-1 = idle)')
+		expect(labels).toContain('LoadingStore.get(load-user:user-1)')
+	})
+
+	it('keeps async callback nodes scoped to their parent operation', async () => {
+		const graph = dependencyGraphPlugin()
+		const app = createAppRuntime({ plugins: [graph] })
+		const loading = app.createLoadingService()
+		const abort = app.createAbortService()
+
+		await loading.run(async () => {
+			await abort.run(() => undefined, 'load-user:user-1')
+		}, 'load-user:user-1')
+
+		const labels = graph.getSnapshot().nodes.map((node) => node.label)
+
+		expect(labels).toContain('LoadingService.run callback')
+		expect(labels).toContain('AbortService.run callback')
+		expect(labels).not.toContain('callback')
 	})
 })

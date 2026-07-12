@@ -52,6 +52,7 @@ export interface CustomEventContext extends RuntimeEventContext {
 
 export interface AppRuntimeLifecycleTarget {
 	emitCustomEvent(name: string, payload?: unknown): void
+	declareDependency(from: object | string, to: object | string): void
 }
 
 export interface RuntimePlugin {
