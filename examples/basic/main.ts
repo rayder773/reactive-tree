@@ -85,9 +85,6 @@ const basicRuntimeExample: ExampleDefinition = {
 		const pagination = app.createPaginationService()
 		const workflow = app.register(
 			new UserWorkflow(users, todos, loading, abort, pagination),
-			{
-				dependencies: [users, todos, loading, abort, pagination],
-			},
 		)
 
 		element.innerHTML = `

@@ -97,12 +97,8 @@ await abort.run(async (signal) => {
 Domain objects are registered through the runtime:
 
 ```ts
-const workflow = app.register(new UserWorkflow(users, loading), {
-	dependencies: [users, loading],
-})
+const workflow = app.register(new UserWorkflow(users, loading))
 ```
-
-`dependencies` are declarative architecture dependencies. They are visible before any method is called.
 
 Runtime method calls are observed automatically after registration:
 
@@ -117,7 +113,7 @@ await workflow.loadUser('user-1')
 It tracks:
 
 - registered objects
-- declared dependencies
+- runtime-created service/store dependencies
 - method calls
 - nested calls
 - async callback boundaries

@@ -108,15 +108,6 @@ export class PartsExampleEnvironment {
 			}),
 			{
 				name: 'PartsDomain',
-				dependencies: [
-					this.parts,
-					this.sorting,
-					this.filters,
-					this.loading,
-					this.abort,
-					this.pagination,
-					this.repository,
-				],
 			},
 		)
 	}

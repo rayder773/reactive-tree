@@ -97,28 +97,6 @@ describe('AppRuntime', () => {
 		).toBe('uses')
 	})
 
-	it('declares registered object dependencies before methods run', () => {
-		const graph = dependencyGraphPlugin()
-		const app = createAppRuntime({ plugins: [graph] })
-		const users = app.createStore<{ id: string }>({ name: 'UsersStore' })
-
-		class UserWorkflow {}
-
-		app.register(new UserWorkflow(), { dependencies: [users] })
-
-		const snapshot = graph.getSnapshot()
-		const workflowNode = snapshot.nodes.find(
-			(node) => node.label === 'UserWorkflow',
-		)
-		const usersNode = snapshot.nodes.find((node) => node.label === 'UsersStore')
-
-		expect(
-			snapshot.edges.find(
-				(edge) => edge.from === workflowNode?.id && edge.to === usersNode?.id,
-			)?.type,
-		).toBe('uses')
-	})
-
 	it('wraps registered objects and builds an aggregated dependency graph', () => {
 		const graph = dependencyGraphPlugin()
 		const app = createAppRuntime({ plugins: [graph] })

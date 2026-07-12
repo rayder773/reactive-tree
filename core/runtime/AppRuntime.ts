@@ -144,10 +144,6 @@ export class AppRuntime {
 		const wrapped = this.wrapObject(original)
 		this.emit('afterRegister', context)
 
-		for (const dependency of options.dependencies ?? []) {
-			this.declareDependency(wrapped, dependency, { type: 'uses' })
-		}
-
 		return wrapped as T
 	}
 

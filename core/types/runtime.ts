@@ -6,7 +6,6 @@ export interface AppRuntimeOptions {
 
 export interface RegisterOptions {
 	name?: string
-	dependencies?: readonly DependencyTarget[]
 }
 
 export interface CreateStoreOptions {
