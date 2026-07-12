@@ -102,9 +102,6 @@ const basicRuntimeExample: ExampleDefinition = {
 			</div>
 		`
 
-		const output = element.querySelector<HTMLPreElement>(
-			'.runtime-example__output',
-		)
 		const abortController = new AbortController()
 
 		element.querySelector('[data-action="load-user"]')?.addEventListener(
@@ -143,7 +140,7 @@ const basicRuntimeExample: ExampleDefinition = {
 			{ signal: abortController.signal },
 		)
 
-		render()
+		// render()
 
 		return {
 			dispose() {
@@ -153,20 +150,19 @@ const basicRuntimeExample: ExampleDefinition = {
 		}
 
 		function render(): void {
-			if (output === null) {
-				return
-			}
-
-			output.textContent = JSON.stringify(
-				{
-					loading: loading.get(getUserRequestKey('user-1')),
-					user: users.get('user-1'),
-					pagination: pagination.get('todos'),
-					graph: graph.getSnapshot(),
-				},
-				null,
-				2,
-			)
+			// if (output === null) {
+			// 	return
+			// }
+			// output.textContent = JSON.stringify(
+			// 	{
+			// 		loading: loading.get(getUserRequestKey('user-1')),
+			// 		user: users.get('user-1'),
+			// 		pagination: pagination.get('todos'),
+			// 		graph: graph.getSnapshot(),
+			// 	},
+			// 	null,
+			// 	2,
+			// )
 		}
 	},
 }
