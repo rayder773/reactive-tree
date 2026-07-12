@@ -3,7 +3,7 @@ import {
 	mainListKey,
 	PartsExampleEnvironment,
 	searchListKey,
-} from '../examples/parts-domain/main'
+} from '../examples/part-list/data'
 
 describe('parts domain example', () => {
 	it('uses one entity map with independent keyed list state', async () => {

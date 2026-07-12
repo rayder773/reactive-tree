@@ -9,10 +9,10 @@ import {
 	type MappedListContract,
 	type PaginationService,
 	type RuntimeKey,
+	type RuntimePlugin,
 	type SortingService,
 	type SortingState,
 } from '../../index'
-import type { ExampleDefinition, ExampleInstance } from '../types'
 
 export interface Part {
 	id: string
@@ -27,7 +27,6 @@ export interface PartFilters extends Record<string, unknown> {
 	manufacturer?: string
 	minPrice?: number
 	maxPrice?: number
-	inStock?: boolean
 }
 
 interface PartsQuery {
@@ -60,6 +59,10 @@ interface PartsDomainDependencies {
 	repository: PartRepository
 }
 
+export interface PartsExampleEnvironmentOptions {
+	plugins?: readonly RuntimePlugin[]
+}
+
 export class PartsExampleEnvironment {
 	readonly graph: DependencyGraphPlugin
 	readonly app: AppRuntime
@@ -72,9 +75,11 @@ export class PartsExampleEnvironment {
 	readonly repository: PartRepository
 	readonly partsDomain: PartsDomain
 
-	constructor() {
+	constructor(options: PartsExampleEnvironmentOptions = {}) {
 		this.graph = dependencyGraphPlugin()
-		this.app = createAppRuntime({ plugins: [this.graph] })
+		this.app = createAppRuntime({
+			plugins: [this.graph, ...(options.plugins ?? [])],
+		})
 		this.parts = this.app.createMappedList<Part>({
 			name: 'Parts',
 			getId: (part) => part.id,
@@ -106,9 +111,7 @@ export class PartsExampleEnvironment {
 				pagination: this.pagination,
 				repository: this.repository,
 			}),
-			{
-				name: 'PartsDomain',
-			},
+			{ name: 'PartsDomain' },
 		)
 	}
 
@@ -127,9 +130,7 @@ export class PartsDomain {
 			return cached
 		}
 
-		const requestKey = getPartRequestKey(id)
-
-		const parts = await this.loadPartsByIds([id], requestKey)
+		const parts = await this.loadPartsByIds([id], getPartRequestKey(id))
 		const part = parts[0]
 
 		if (part === undefined) {
@@ -159,6 +160,40 @@ export class PartsDomain {
 		const current = this.dependencies.pagination.get(key)
 		this.dependencies.pagination.setPage(current.page + 1, key)
 		return this.loadListPage(key, 'append')
+	}
+
+	getList(key?: RuntimeKey): readonly Part[] {
+		return this.dependencies.parts.list(key).get()
+	}
+
+	getListIds(key?: RuntimeKey): readonly string[] {
+		return this.dependencies.parts.list(key).getIds()
+	}
+
+	getAllLoadedParts(): readonly Part[] {
+		return this.dependencies.parts.values()
+	}
+
+	setSorting(value: SortingState<PartSortField>, key?: RuntimeKey): void {
+		this.dependencies.sorting.set(value, key)
+		this.dependencies.pagination.setPage(1, key)
+	}
+
+	setFilters(value: PartFilters, key?: RuntimeKey): void {
+		this.dependencies.filters.set(value, key)
+		this.dependencies.pagination.setPage(1, key)
+	}
+
+	updatePart(part: Part): void {
+		this.dependencies.parts.set(part)
+	}
+
+	deletePart(id: string): void {
+		this.dependencies.parts.delete(id)
+	}
+
+	clearList(key?: RuntimeKey): void {
+		this.dependencies.parts.list(key).clear()
 	}
 
 	private async loadListPage(
@@ -191,36 +226,6 @@ export class PartsDomain {
 			this.dependencies.pagination.setTotal(result.total, key)
 			return this.getList(key)
 		}, key)
-	}
-
-	getList(key?: RuntimeKey): readonly Part[] {
-		return this.dependencies.parts.list(key).get()
-	}
-
-	getListIds(key?: RuntimeKey): readonly string[] {
-		return this.dependencies.parts.list(key).getIds()
-	}
-
-	setSorting(value: SortingState<PartSortField>, key?: RuntimeKey): void {
-		this.dependencies.sorting.set(value, key)
-		this.dependencies.pagination.setPage(1, key)
-	}
-
-	setFilters(value: PartFilters, key?: RuntimeKey): void {
-		this.dependencies.filters.set(value, key)
-		this.dependencies.pagination.setPage(1, key)
-	}
-
-	updatePart(part: Part): void {
-		this.dependencies.parts.set(part)
-	}
-
-	deletePart(id: string): void {
-		this.dependencies.parts.delete(id)
-	}
-
-	clearList(key?: RuntimeKey): void {
-		this.dependencies.parts.list(key).clear()
 	}
 
 	private async loadPartsByIds(
@@ -278,7 +283,7 @@ class FakePartsRepository implements PartRepository {
 		ids: readonly string[],
 		signal: AbortSignal,
 	): Promise<readonly Part[]> {
-		await delay(350, signal)
+		await delay(120, signal)
 
 		return ids.map(
 			(id) =>
@@ -295,7 +300,7 @@ class FakePartsRepository implements PartRepository {
 		query: PartsQuery,
 		signal: AbortSignal,
 	): Promise<PartsQueryResult> {
-		await delay(350, signal)
+		await delay(120, signal)
 
 		const filtered = Object.values(this.seed).filter((part) => {
 			if (
@@ -353,184 +358,6 @@ export const manufacturerListKey = [
 ] as const
 export const searchListKey = ['parts', 'search'] as const
 
-const partsDomainExample: ExampleDefinition = {
-	id: 'parts-domain',
-	title: 'Parts Domain',
-	description:
-		'Shared mapped entity storage with keyed lists, pagination, sorting, filters, loading, and abort state.',
-	mount({ element }): ExampleInstance {
-		const environment = new PartsExampleEnvironment()
-		const abortController = new AbortController()
-
-		element.innerHTML = `
-			<div class="parts-example">
-				<div class="parts-example__toolbar">
-					<label>
-						<span>Part id</span>
-						<input data-part-id type="text" value="p-200" />
-					</label>
-				</div>
-				<div class="runtime-example__actions">
-					<button data-action="load-main" type="button">Load main list</button>
-					<button data-action="load-other" type="button">Load other lists</button>
-					<button data-action="next-expensive" type="button">Load next expensive page</button>
-					<button data-action="sort-main" type="button">Sort main by price</button>
-					<button data-action="filter-main" type="button">Filter main</button>
-					<button data-action="update-part" type="button">Update part</button>
-					<button data-action="clear-main" type="button">Clear main list</button>
-					<button data-action="delete-part" type="button">Delete part</button>
-					<button data-action="print-graph" type="button">Print graph</button>
-				</div>
-				<pre class="runtime-example__output" data-output></pre>
-			</div>
-		`
-
-		const output = getRequiredElement(element, '[data-output]')
-		const partIdInput = getRequiredElement<HTMLInputElement>(
-			element,
-			'[data-part-id]',
-		)
-
-		environment.pagination.setPageSize(2, mainListKey)
-		environment.pagination.setPageSize(1, expensiveListKey)
-		environment.pagination.setPageSize(2, manufacturerListKey)
-
-		bindAction('load-main', async () => {
-			await environment.partsDomain.loadList(mainListKey)
-			render('Loaded main list')
-		})
-
-		bindAction('load-other', async () => {
-			environment.partsDomain.setSorting(
-				{ field: 'price', direction: 'desc' },
-				expensiveListKey,
-			)
-			environment.partsDomain.setFilters({ minPrice: 80 }, expensiveListKey)
-			environment.partsDomain.setFilters(
-				{ manufacturer: 'Northwind Components' },
-				manufacturerListKey,
-			)
-			await environment.partsDomain.loadList(expensiveListKey)
-			await environment.partsDomain.loadList(manufacturerListKey)
-			render('Loaded search and manufacturer lists')
-		})
-
-		bindAction('next-expensive', async () => {
-			await environment.partsDomain.loadNextPage(expensiveListKey)
-			render('Loaded next expensive list page')
-		})
-
-		bindAction('sort-main', () => {
-			environment.partsDomain.setSorting(
-				{ field: 'price', direction: 'desc' },
-				mainListKey,
-			)
-			render('Changed main sorting')
-		})
-
-		bindAction('filter-main', () => {
-			environment.partsDomain.setFilters(
-				{ manufacturer: 'Northwind Components', minPrice: 50 },
-				mainListKey,
-			)
-			render('Changed main filters')
-		})
-
-		bindAction('update-part', () => {
-			const id = getPartId()
-			const current = environment.parts.get(id) ?? {
-				id,
-				name: `Manual part ${id}`,
-				manufacturer: 'Manual updates',
-				price: 100,
-			}
-			environment.partsDomain.updatePart({
-				...current,
-				name: `${current.name} (updated)`,
-				price: current.price + 1,
-			})
-			render('Updated shared entity')
-		})
-
-		bindAction('clear-main', () => {
-			environment.partsDomain.clearList(mainListKey)
-			render('Cleared main list')
-		})
-
-		bindAction('delete-part', () => {
-			environment.partsDomain.deletePart(getPartId())
-			render('Deleted entity from shared map and all lists')
-		})
-
-		bindAction('print-graph', () => {
-			environment.graph.print()
-			render('Printed graph to console')
-		})
-
-		render('Ready')
-
-		return {
-			dispose() {
-				abortController.abort()
-				environment.dispose()
-			},
-		}
-
-		function bindAction(
-			action: string,
-			handler: () => void | Promise<void>,
-		): void {
-			element
-				.querySelector(`[data-action="${action}"]`)
-				?.addEventListener(
-					'click',
-					() => void Promise.resolve(handler()).catch(renderError),
-					{ signal: abortController.signal },
-				)
-		}
-
-		function render(message: string): void {
-			output.textContent = JSON.stringify(
-				{
-					message,
-					selectedPart: environment.parts.get(getPartId()),
-					entityMap: environment.parts.values(),
-					lists: {
-						main: getListSnapshot(mainListKey),
-						expensive: getListSnapshot(expensiveListKey),
-						manufacturer: getListSnapshot(manufacturerListKey),
-					},
-					graph: environment.graph.getSnapshot(),
-				},
-				null,
-				2,
-			)
-		}
-
-		function getListSnapshot(key: RuntimeKey) {
-			return {
-				key,
-				ids: environment.partsDomain.getListIds(key),
-				parts: environment.partsDomain.getList(key),
-				pagination: environment.pagination.get(key),
-				sorting: environment.sorting.get(key),
-				filters: environment.filters.get(key),
-				loading: environment.loading.get(key),
-			}
-		}
-
-		function renderError(error: unknown): void {
-			render(error instanceof Error ? error.message : 'Unknown error')
-		}
-
-		function getPartId(): string {
-			return partIdInput.value.trim() || 'p-200'
-		}
-	},
-}
-
-export default partsDomainExample
-
 function getPartRequestKey(partId: string): string {
 	return `load-part:${partId}`
 }
@@ -548,17 +375,4 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
 			{ once: true },
 		)
 	})
-}
-
-function getRequiredElement<T extends HTMLElement>(
-	root: ParentNode,
-	selector: string,
-): T {
-	const element = root.querySelector<T>(selector)
-
-	if (element === null) {
-		throw new Error(`Parts example element was not found: ${selector}`)
-	}
-
-	return element
 }

@@ -1,8 +1,4 @@
-import basicRuntimeExample from './basic/main'
-import partsDomainExample from './parts-domain/main'
+import partListExample from './part-list/renderModel'
 import type { ExampleDefinition } from './types'
 
-export const examples: readonly ExampleDefinition[] = [
-	basicRuntimeExample,
-	partsDomainExample,
-]
+export const examples: readonly ExampleDefinition[] = [partListExample]

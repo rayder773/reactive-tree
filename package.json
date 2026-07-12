@@ -4,7 +4,8 @@
 	"main": "index.js",
 	"type": "module",
 	"scripts": {
-		"dev": "vite examples",
+		"dev": "vite --config vite.config.ts examples",
+		"build": "vite build --config vite.config.ts examples",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit",
 		"check": "biome check .",
@@ -16,8 +17,10 @@
 	"description": "",
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.2",
+		"@vitejs/plugin-vue": "^6.0.3",
 		"typescript": "^6.0.3",
 		"vite": "^8.1.4",
-		"vitest": "^4.1.9"
+		"vitest": "^4.1.9",
+		"vue": "^3.5.25"
 	}
 }

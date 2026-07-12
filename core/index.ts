@@ -13,6 +13,8 @@ export {
 	type DependencyGraphSnapshot,
 	dependencyGraphPlugin,
 } from './plugins/dependencyGraphPlugin'
+export * from './reactivity'
+export * from './render-adapters'
 export { AppRuntime } from './runtime/AppRuntime'
 export { createAppRuntime } from './runtime/createAppRuntime'
 export { AbortService } from './services/AbortService'
@@ -59,3 +61,4 @@ export {
 	type Store as StoreContract,
 	type StoreKey,
 } from './types/store'
+export * from './ui'
