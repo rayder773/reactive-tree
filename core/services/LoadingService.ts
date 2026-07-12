@@ -1,5 +1,5 @@
 import type { AsyncExecutor } from '../types/runtime'
-import type { Store } from '../types/store'
+import type { Store, StoreKey } from '../types/store'
 
 export type LoadingStatus = 'idle' | 'loading' | 'error'
 
@@ -9,7 +9,7 @@ export class LoadingService {
 		private readonly executeAsync: AsyncExecutor,
 	) {}
 
-	async run<T>(callback: () => T | Promise<T>, key?: string): Promise<T> {
+	async run<T>(callback: () => T | Promise<T>, key?: StoreKey): Promise<T> {
 		this.store.set('loading', key)
 
 		try {
@@ -22,7 +22,7 @@ export class LoadingService {
 		}
 	}
 
-	get(key?: string): LoadingStatus {
+	get(key?: StoreKey): LoadingStatus {
 		return this.store.get(key) ?? 'idle'
 	}
 }

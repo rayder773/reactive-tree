@@ -65,7 +65,11 @@ describe('services', () => {
 		pagination.setPage(3, 'todos')
 		pagination.setPageSize(50, 'todos')
 
-		expect(pagination.get('todos')).toEqual({ page: 1, pageSize: 50 })
+		expect(pagination.get('todos')).toEqual({
+			page: 1,
+			pageSize: 50,
+			total: 0,
+		})
 	})
 })
 

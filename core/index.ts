@@ -1,3 +1,10 @@
+export { MappedList } from './mapped-list/mapped-list'
+export type {
+	EntityListContract,
+	MappedListContract,
+	MappedListOptions,
+	RuntimeKey,
+} from './mapped-list/mapped-list.types'
 export {
 	type DependencyGraphEdge,
 	type DependencyGraphNode,
@@ -9,11 +16,21 @@ export {
 export { AppRuntime } from './runtime/AppRuntime'
 export { createAppRuntime } from './runtime/createAppRuntime'
 export { AbortService } from './services/AbortService'
+export type {
+	FiltersServiceContract as FiltersService,
+	FiltersServiceOptions,
+} from './services/filters/filters-service.types'
 export { LoadingService, type LoadingStatus } from './services/LoadingService'
 export {
 	PaginationService,
 	type PaginationState,
 } from './services/PaginationService'
+export type {
+	SortDirection,
+	SortingServiceContract as SortingService,
+	SortingServiceOptions,
+	SortingState,
+} from './services/sorting/sorting-service.types'
 export { Store } from './store/Store'
 export type {
 	AppRuntimeLifecycleTarget,

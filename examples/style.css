@@ -151,6 +151,36 @@ button {
 	white-space: pre-wrap;
 }
 
+.parts-example {
+	display: grid;
+	gap: 16px;
+	max-width: 980px;
+}
+
+.parts-example__toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: end;
+}
+
+.parts-example__toolbar label {
+	display: grid;
+	gap: 6px;
+	color: #475467;
+	font-size: 13px;
+}
+
+.parts-example__toolbar input {
+	width: 180px;
+	border: 1px solid #b9c3cc;
+	border-radius: 6px;
+	background: #ffffff;
+	color: #202124;
+	font: inherit;
+	padding: 8px 10px;
+}
+
 @media (max-width: 720px) {
 	#app {
 		grid-template-columns: 1fr;

@@ -1,6 +1,15 @@
+import { MappedList } from '../mapped-list/mapped-list'
+import type { MappedListOptions } from '../mapped-list/mapped-list.types'
 import { AbortService } from '../services/AbortService'
+import { FiltersService } from '../services/filters/filters-service'
+import type { FiltersServiceOptions } from '../services/filters/filters-service.types'
 import { LoadingService } from '../services/LoadingService'
 import { PaginationService } from '../services/PaginationService'
+import { SortingService } from '../services/sorting/sorting-service'
+import type {
+	SortingServiceOptions,
+	SortingState,
+} from '../services/sorting/sorting-service.types'
 import { Store } from '../store/Store'
 import type {
 	AsyncEventContext,
@@ -75,6 +84,50 @@ export class AppRuntime {
 	) {
 		const service = this.register(new PaginationService(store), {
 			name: 'PaginationService',
+		})
+		this.declareDependency(service, store, { type: 'uses' })
+		return service
+	}
+
+	createMappedList<TEntity, TId extends string = string>(
+		options: MappedListOptions<TEntity, TId>,
+	) {
+		const entityStore = this.createStore<TEntity>({
+			name: `${options.name}.Entities`,
+		})
+		const listIdsStore = this.createStore<readonly TId[]>({
+			name: `${options.name}.Lists`,
+		})
+		const service = this.register(
+			new MappedList<TEntity, TId>(options, entityStore, listIdsStore),
+			{ name: options.name },
+		)
+		this.declareDependency(service, entityStore, { type: 'uses' })
+		this.declareDependency(service, listIdsStore, { type: 'uses' })
+		return service
+	}
+
+	createSortingService<TField extends string>(
+		options: SortingServiceOptions<TField>,
+	) {
+		const store = this.createStore<SortingState<TField>>({
+			name: `${options.name ?? 'SortingService'}.Store`,
+		})
+		const service = this.register(new SortingService(store, options), {
+			name: options.name ?? 'SortingService',
+		})
+		this.declareDependency(service, store, { type: 'uses' })
+		return service
+	}
+
+	createFiltersService<TFilters extends Record<string, unknown>>(
+		options: FiltersServiceOptions<TFilters>,
+	) {
+		const store = this.createStore<TFilters>({
+			name: `${options.name ?? 'FiltersService'}.Store`,
+		})
+		const service = this.register(new FiltersService(store, options), {
+			name: options.name ?? 'FiltersService',
 		})
 		this.declareDependency(service, store, { type: 'uses' })
 		return service

@@ -1,5 +1,5 @@
 import type { AsyncExecutor } from '../types/runtime'
-import type { Store } from '../types/store'
+import type { Store, StoreKey } from '../types/store'
 
 export class AbortService {
 	constructor(
@@ -9,7 +9,7 @@ export class AbortService {
 
 	async run<T>(
 		callback: (signal: AbortSignal) => T | Promise<T>,
-		key?: string,
+		key?: StoreKey,
 	): Promise<T> {
 		const previousController = this.store.get(key)
 
