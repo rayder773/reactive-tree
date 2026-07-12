@@ -4,9 +4,9 @@
 	"main": "index.js",
 	"type": "module",
 	"scripts": {
+		"dev": "vite examples",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit",
-		"dev": "npm --prefix examples/vue-default-renderer run dev",
 		"check": "biome check .",
 		"fix": "biome check --write ."
 	},
@@ -17,7 +17,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.2",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.9",
-		"vue": "^3.5.38"
+		"vite": "^8.1.4",
+		"vitest": "^4.1.9"
 	}
 }

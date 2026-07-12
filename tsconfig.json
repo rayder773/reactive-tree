@@ -10,5 +10,5 @@
 		"outDir": "dist",
 		"types": ["vitest/globals"]
 	},
-	"include": ["src", "tests", "examples/*.ts", "index.ts"]
+	"include": ["core", "tests", "examples", "index.ts"]
 }
