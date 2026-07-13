@@ -1,20 +1,20 @@
-export { type ButtonUtility, createButtonUtility } from './button'
+export { createButtonNode } from './button'
 export type {
-	ButtonNode,
-	ButtonOptions,
-	ComputedInput,
-	RepeatChild,
-	RepeatNode,
-	RepeatOptions,
-	TableColumn,
-	TableNode,
-	TableOptions,
-	TextNode,
-	TextOptions,
-	UiFactoryOptions,
-	UiNodeBase,
-	UiNodeFactory,
+  ButtonNode,
+  ButtonOptions,
+  ContextualFn,
+  RepeatNode,
+  RepeatOptions,
+  ResolvedButtonNode,
+  ResolvedTableNode,
+  ResolvedTextNode,
+  TableColumn,
+  TableNode,
+  TableOptions,
+  TextNode,
+  TextOptions,
+  UiNodeBase,
 } from './nodeTypes'
-export { createRepeatUtility, type RepeatUtility } from './repeat'
-export { createTableUtility } from './table'
-export { createTextUtility, type TextUtility } from './text'
+export { createRepeatNode } from './repeat'
+export { createTableNode } from './table'
+export { createTextNode } from './text'

@@ -1,24 +1,31 @@
 import type { ReactivityApi } from '../../reactivity'
-import { createNodeFactory } from './createNodeFactory'
 import {
-	type ButtonNode,
-	type ButtonOptions,
-	createCommonNodeProps,
-	type UiFactoryOptions,
-	type UiNodeFactory,
+  createResolveCache,
+  resolveContextualFn,
+  type ButtonNode,
+  type ButtonOptions,
 } from './nodeTypes'
 
-export type ButtonUtility = UiNodeFactory<ButtonNode, ButtonOptions>
-
-export function createButtonUtility(
-	reactivity: ReactivityApi,
-	options: UiFactoryOptions,
-): ButtonUtility {
-	return createNodeFactory(options, (input, nextId) => ({
-		...createCommonNodeProps('button', input, reactivity, nextId),
-		type: 'button',
-		text: reactivity.toComputed(input.text),
-		disabled: reactivity.toComputed(input.disabled ?? false),
-		onClick: input.onClick ?? (() => undefined),
-	}))
+export function createButtonNode(
+  reactivity: ReactivityApi,
+  id: string,
+  options: ButtonOptions,
+): ButtonNode {
+  return {
+    id,
+    type: 'button',
+    resolve: createResolveCache((ctx) => ({
+      text: resolveContextualFn(reactivity, options.text, ctx),
+      disabled: resolveContextualFn(reactivity, options.disabled ?? false, ctx),
+      isVisible: resolveContextualFn(reactivity, options.isVisible ?? true, ctx),
+      onClick: () => {
+        const fn = options.onClick
+        if (fn === undefined) return undefined
+        if ((fn as (...args: unknown[]) => unknown).length > 0) {
+          return (fn as (ctx: unknown) => void | Promise<void>)(ctx)
+        }
+        return (fn as () => void | Promise<void>)()
+      },
+    })),
+  }
 }

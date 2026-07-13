@@ -1,21 +1,23 @@
 import type { ReactivityApi } from '../../reactivity'
-import { createNodeFactory } from './createNodeFactory'
 import {
-	createCommonNodeProps,
-	type TableNode,
-	type TableOptions,
-	type UiFactoryOptions,
-	type UiNodeFactory,
+  createResolveCache,
+  resolveContextualFn,
+  type TableNode,
+  type TableOptions,
 } from './nodeTypes'
 
-export function createTableUtility(
-	reactivity: ReactivityApi,
-	options: UiFactoryOptions,
-): UiNodeFactory<TableNode<unknown>, TableOptions<unknown>> {
-	return createNodeFactory(options, (input, nextId) => ({
-		...createCommonNodeProps('table', input, reactivity, nextId),
-		type: 'table',
-		rows: reactivity.toComputed(input.rows),
-		columns: input.columns,
-	}))
+export function createTableNode<TRow>(
+  reactivity: ReactivityApi,
+  id: string,
+  options: TableOptions<TRow>,
+): TableNode<TRow> {
+  return {
+    id,
+    type: 'table',
+    columns: options.columns,
+    resolve: createResolveCache((ctx) => ({
+      rows: resolveContextualFn(reactivity, options.rows, ctx),
+      isVisible: resolveContextualFn(reactivity, options.isVisible ?? true, ctx),
+    })),
+  }
 }

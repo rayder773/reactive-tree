@@ -1,41 +1,30 @@
 import { createApp } from 'vue'
-import {
-	type ButtonNode,
-	createButtonUtility,
-	createReactivityPlugin,
-	createRepeatUtility,
-	createTableUtility,
-	createTextUtility,
-	type ReactivityPlugin,
-	type RepeatNode,
-	type TableColumn,
-	type TableNode,
-	type TextNode,
+import type {
+	ButtonNode,
+	ReactiveList,
+	RepeatNode,
+	TableColumn,
+	TableNode,
+	TextNode,
 } from '../../index'
 import type { ExampleDefinition, ExampleInstance } from '../types'
 import { type Part, type PartFilters, PartsExampleEnvironment } from './data'
 import PartList from './PartList.vue'
 
-export interface PartsListView {
-	readonly id: string
-	readonly key: string
-	readonly title: TextNode
-	readonly status: TextNode
-	readonly reloadButton: ButtonNode
-	readonly nextPageButton: ButtonNode
-	readonly sortButton: ButtonNode
-	readonly filterButton: ButtonNode
-	readonly clearFilterButton: ButtonNode
-	readonly table: TableNode<unknown>
-}
-
 export interface PartListModel {
-	readonly reactivity: ReactivityPlugin
 	readonly createListButton: ButtonNode
-	readonly listsRepeat: RepeatNode<unknown, unknown>
+	readonly listsRepeat: RepeatNode<string>
 	readonly allLoadedTitle: TextNode
-	readonly allLoadedPartsTable: TableNode<unknown>
-	createPartsList(): void
+	readonly allLoadedPartsTable: TableNode<Part>
+	readonly partListTitle: TextNode
+	readonly partListStatus: TextNode
+	readonly partListReloadButton: ButtonNode
+	readonly partListNextPageButton: ButtonNode
+	readonly partListSortButton: ButtonNode
+	readonly partListFilterButton: ButtonNode
+	readonly partListClearFilterButton: ButtonNode
+	readonly partListTable: TableNode<Part>
+	readonly listKeys: ReactiveList<string>
 	dispose(): void
 }
 
@@ -45,11 +34,8 @@ const partListExample: ExampleDefinition = {
 	description:
 		'Runtime-bound UI nodes rendered by Vue over plain parts domain services.',
 	mount({ element }): ExampleInstance {
-		const reactivity = createReactivityPlugin()
-		const environment = new PartsExampleEnvironment({
-			plugins: [reactivity],
-		})
-		const model = createPartListModel(environment, reactivity)
+		const environment = new PartsExampleEnvironment()
+		const model = createPartListModel(environment)
 		const app = createApp(PartList, { model })
 
 		app.mount(element)
@@ -68,148 +54,137 @@ export default partListExample
 
 export function createPartListModel(
 	environment: PartsExampleEnvironment,
-	reactivity: ReactivityPlugin,
 ): PartListModel {
-	const button = createButtonUtility(reactivity, { name: 'PartsButtons' })
-	const text = createTextUtility(reactivity, { name: 'PartsTexts' })
-	const repeat = createRepeatUtility(reactivity, { name: 'PartsRepeats' })
-	const table = createTableUtility(reactivity, { name: 'PartsTables' })
-	const lists = reactivity.ref<readonly PartsListView[]>([])
+	const { ui } = environment
 	let nextListId = 1
+	const listKeys = ui.createList<string>()
 
-	const createListButton = button({
+	const createListButton = ui.button('create-list', {
 		text: () => 'Create part list',
-		disabled: () => false,
-		onClick: () => createPartsList(),
+		onClick: () => {
+			const key = `parts:list:${nextListId++}`
+			environment.pagination.setPageSize(2, key)
+			environment.partsDomain.setSorting({ field: 'name', direction: 'asc' }, key)
+			environment.partsDomain.setFilters({}, key)
+			listKeys.append([key])
+			void environment.partsDomain.loadList(key)
+		},
 	})
-	const listsRepeat = repeat({
-		items: () => lists.get(),
-		key: (item) => (item as PartsListView).id,
-		item: (item) => item,
+
+	const listsRepeat = ui.repeat('part-lists', {
+		items: () => listKeys.get(),
+		key: (k) => k,
 	})
-	const allLoadedTitle = text({
+
+	const allLoadedTitle = ui.text('all-loaded-title', {
 		value: () =>
 			`All loaded parts (${environment.partsDomain.getAllLoadedParts().length})`,
 	})
-	const allLoadedPartsTable = table({
+
+	const allLoadedPartsTable = ui.table('all-loaded-table', {
 		rows: () => environment.partsDomain.getAllLoadedParts(),
 		columns: partColumns,
 	})
 
+	const partListTitle = ui.text('part-list:title', {
+		value: (key: string) => `Part list ${key}`,
+	})
+
+	const partListStatus = ui.text('part-list:status', {
+		value: (key: string) => {
+			const p = environment.pagination.get(key)
+			const s = environment.sorting.get(key)
+			const f = environment.filters.get(key)
+			return [
+				`page ${p.page}`,
+				`${p.total} total`,
+				`sort ${s.field} ${s.direction}`,
+				formatFilters(f),
+			].join(' | ')
+		},
+	})
+
+	const partListReloadButton = ui.button('part-list:reload', {
+		text: () => 'Load',
+		disabled: (key: string) => environment.loading.get(key) === 'loading',
+		onClick: async (key: string) => {
+			await environment.partsDomain.loadList(key)
+		},
+	})
+
+	const partListNextPageButton = ui.button('part-list:next-page', {
+		text: () => 'Next page',
+		disabled: (key: string) => {
+			const p = environment.pagination.get(key)
+			return (
+				environment.loading.get(key) === 'loading' ||
+				p.page * p.pageSize >= p.total
+			)
+		},
+		onClick: async (key: string) => {
+			await environment.partsDomain.loadNextPage(key)
+		},
+	})
+
+	const partListSortButton = ui.button('part-list:sort', {
+		text: (key: string) => {
+			const s = environment.sorting.get(key)
+			return s.direction === 'asc' ? 'Sort price desc' : 'Sort name asc'
+		},
+		disabled: (key: string) => environment.loading.get(key) === 'loading',
+		onClick: async (key: string) => {
+			const s = environment.sorting.get(key)
+			environment.partsDomain.setSorting(
+				s.direction === 'asc'
+					? { field: 'price', direction: 'desc' }
+					: { field: 'name', direction: 'asc' },
+				key,
+			)
+			await environment.partsDomain.loadList(key)
+		},
+	})
+
+	const partListFilterButton = ui.button('part-list:filter', {
+		text: () => 'Filter Northwind',
+		disabled: (key: string) => environment.loading.get(key) === 'loading',
+		onClick: async (key: string) => {
+			environment.partsDomain.setFilters(
+				{ manufacturer: 'Northwind Components' },
+				key,
+			)
+			await environment.partsDomain.loadList(key)
+		},
+	})
+
+	const partListClearFilterButton = ui.button('part-list:clear-filter', {
+		text: () => 'Clear filters',
+		disabled: (key: string) => environment.loading.get(key) === 'loading',
+		onClick: async (key: string) => {
+			environment.partsDomain.setFilters({}, key)
+			await environment.partsDomain.loadList(key)
+		},
+	})
+
+	const partListTable = ui.table('part-list:table', {
+		rows: (key: string) => environment.partsDomain.getList(key),
+		columns: partColumns,
+	})
+
 	return {
-		reactivity,
 		createListButton,
 		listsRepeat,
 		allLoadedTitle,
 		allLoadedPartsTable,
-		createPartsList,
-		dispose() {
-			reactivity.dispose()
-		},
-	}
-
-	function createPartsList(): void {
-		const index = nextListId
-		nextListId += 1
-
-		const key = `parts:list:${index}`
-		environment.pagination.setPageSize(2, key)
-		environment.partsDomain.setSorting({ field: 'name', direction: 'asc' }, key)
-		environment.partsDomain.setFilters({}, key)
-
-		const view: PartsListView = {
-			id: key,
-			key,
-			title: text({
-				value: () => `Part list ${index}`,
-			}),
-			status: text({
-				value: () => {
-					const pagination = environment.pagination.get(key)
-					const sorting = environment.sorting.get(key)
-					const filters = environment.filters.get(key)
-
-					return [
-						`page ${pagination.page}`,
-						`${pagination.total} total`,
-						`sort ${sorting.field} ${sorting.direction}`,
-						formatFilters(filters),
-					].join(' | ')
-				},
-			}),
-			reloadButton: button({
-				text: () => 'Load',
-				disabled: () => environment.loading.get(key) === 'loading',
-				onClick: async () => {
-					await environment.partsDomain.loadList(key)
-				},
-			}),
-			nextPageButton: button({
-				text: () => 'Next page',
-				disabled: () => {
-					const pagination = environment.pagination.get(key)
-					return (
-						environment.loading.get(key) === 'loading' ||
-						pagination.page * pagination.pageSize >= pagination.total
-					)
-				},
-				onClick: async () => {
-					await environment.partsDomain.loadNextPage(key)
-				},
-			}),
-			sortButton: button({
-				text: () => {
-					const sorting = environment.sorting.get(key)
-					return sorting.direction === 'asc'
-						? 'Sort price desc'
-						: 'Sort name asc'
-				},
-				disabled: () => environment.loading.get(key) === 'loading',
-				onClick: async () => {
-					const sorting = environment.sorting.get(key)
-
-					if (sorting.direction === 'asc') {
-						environment.partsDomain.setSorting(
-							{ field: 'price', direction: 'desc' },
-							key,
-						)
-					} else {
-						environment.partsDomain.setSorting(
-							{ field: 'name', direction: 'asc' },
-							key,
-						)
-					}
-
-					await environment.partsDomain.loadList(key)
-				},
-			}),
-			filterButton: button({
-				text: () => 'Filter Northwind',
-				disabled: () => environment.loading.get(key) === 'loading',
-				onClick: async () => {
-					environment.partsDomain.setFilters(
-						{ manufacturer: 'Northwind Components' },
-						key,
-					)
-					await environment.partsDomain.loadList(key)
-				},
-			}),
-			clearFilterButton: button({
-				text: () => 'Clear filters',
-				disabled: () => environment.loading.get(key) === 'loading',
-				onClick: async () => {
-					environment.partsDomain.setFilters({}, key)
-					await environment.partsDomain.loadList(key)
-				},
-			}),
-			table: table({
-				rows: () => environment.partsDomain.getList(key),
-				columns: partColumns,
-			}),
-		}
-
-		lists.update((current) => [...current, view])
-		void environment.partsDomain.loadList(key)
+		partListTitle,
+		partListStatus,
+		partListReloadButton,
+		partListNextPageButton,
+		partListSortButton,
+		partListFilterButton,
+		partListClearFilterButton,
+		partListTable,
+		listKeys,
+		dispose() {},
 	}
 }
 

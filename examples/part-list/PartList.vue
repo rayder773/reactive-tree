@@ -36,27 +36,27 @@ export default defineComponent({
 
 		<section class="parts-ui__section">
 			<AppRepeat :node="model.listsRepeat">
-				<template #default="{ node }">
+				<template #default>
 					<article class="parts-list">
 						<header class="parts-list__header">
 							<h3>
-								<AppText :node="node.title" />
+								<AppText :node="model.partListTitle" />
 							</h3>
 							<p>
-								<AppText :node="node.status" />
+								<AppText :node="model.partListStatus" />
 							</p>
 						</header>
 
 						<div class="parts-list__actions">
-							<AppButton :node="node.reloadButton" />
-							<AppButton :node="node.nextPageButton" />
-							<AppButton :node="node.sortButton" />
-							<AppButton :node="node.filterButton" />
-							<AppButton :node="node.clearFilterButton" />
+							<AppButton :node="model.partListReloadButton" />
+							<AppButton :node="model.partListNextPageButton" />
+							<AppButton :node="model.partListSortButton" />
+							<AppButton :node="model.partListFilterButton" />
+							<AppButton :node="model.partListClearFilterButton" />
 						</div>
 
 						<AppTable
-							:node="node.table"
+							:node="model.partListTable"
 							class="parts-table"
 						/>
 					</article>

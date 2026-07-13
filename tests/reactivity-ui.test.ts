@@ -1,16 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { PartsExampleEnvironment } from '../examples/part-list/data'
-import {
-	createPartListModel,
-	type PartsListView,
-} from '../examples/part-list/renderModel'
-import {
-	createAppRuntime,
-	createButtonUtility,
-	createReactivityPlugin,
-	createRepeatUtility,
-	createTextUtility,
-} from '../index'
+import { createPartListModel } from '../examples/part-list/renderModel'
+import { createAppRuntime, createReactivityPlugin } from '../index'
+import { createUiRuntime } from '../core/ui/UiRuntime'
 
 describe('ReactivityPlugin', () => {
 	it('tracks plain store reads from computed values', () => {
@@ -59,69 +51,88 @@ describe('ReactivityPlugin', () => {
 	})
 })
 
-describe('UI node utilities', () => {
-	it('creates callable utility instances with node storage', () => {
+describe('UiRuntime nodes', () => {
+	it('creates and retrieves button node with resolve()', () => {
 		const reactivity = createReactivityPlugin()
-		const button = createButtonUtility(reactivity, { name: 'Buttons' })
-		const node = button({
+		const ui = createUiRuntime(reactivity)
+		const onClick = vi.fn()
+
+		const node = ui.button('save', {
 			text: () => 'Save',
 			disabled: () => false,
+			onClick,
 		})
 
-		expect(button.get(node.id)).toBe(node)
-		expect(button.values()).toEqual([node])
-		expect(node.text.get()).toBe('Save')
-		expect(node.disabled.get()).toBe(false)
+		const resolved = node.resolve()
+		expect(resolved.text.get()).toBe('Save')
+		expect(resolved.disabled.get()).toBe(false)
+
+		resolved.onClick()
+		expect(onClick).toHaveBeenCalledTimes(1)
 	})
 
-	it('creates repeat children from reactive item arrays', () => {
+	it('resolves parametrized node with context', () => {
 		const reactivity = createReactivityPlugin()
-		const repeat = createRepeatUtility(reactivity, { name: 'Repeats' })
-		const text = createTextUtility(reactivity, { name: 'Texts' })
-		const items = reactivity.ref<readonly { id: string; label: string }[]>([
-			{ id: 'one', label: 'One' },
-		])
-		const node = repeat({
-			items,
-			key: (item) => (item as { id: string }).id,
-			item: (item) =>
-				text({
-					value: () => (item as { label: string }).label,
-				}),
+		const ui = createUiRuntime(reactivity)
+
+		ui.text('item:label', {
+			value: (key: string) => `Label for ${key}`,
 		})
 
-		expect(node.children.get()).toHaveLength(1)
+		const node = ui.text('item:label')
+		expect(node.resolve('abc').value.get()).toBe('Label for abc')
+		expect(node.resolve('xyz').value.get()).toBe('Label for xyz')
+	})
 
-		items.set([
-			{ id: 'one', label: 'One' },
-			{ id: 'two', label: 'Two' },
-		])
+	it('caches resolved instances per context', () => {
+		const reactivity = createReactivityPlugin()
+		const ui = createUiRuntime(reactivity)
 
-		expect(node.children.get()).toHaveLength(2)
-		expect(text.values()).toHaveLength(2)
+		const node = ui.text('cached', { value: (k: string) => k })
+		const a1 = node.resolve('key-a')
+		const a2 = node.resolve('key-a')
+		const b1 = node.resolve('key-b')
+
+		expect(a1).toBe(a2)
+		expect(a1).not.toBe(b1)
+	})
+
+	it('creates reactive list that triggers computed re-evaluation', () => {
+		const reactivity = createReactivityPlugin()
+		const ui = createUiRuntime(reactivity)
+		const list = ui.createList<string>()
+
+		const node = ui.repeat('items', {
+			items: () => list.get(),
+			key: (k) => k,
+		})
+
+		expect(node.items.get()).toHaveLength(0)
+
+		list.append(['a', 'b'])
+
+		expect(node.items.get()).toHaveLength(2)
 	})
 })
 
 describe('part list render model', () => {
-	it('creates a list without recursively invalidating repeat children', async () => {
-		const reactivity = createReactivityPlugin()
-		const environment = new PartsExampleEnvironment({
-			plugins: [reactivity],
-		})
-		const model = createPartListModel(environment, reactivity)
+	it('adds a list key and loads parts after button click', async () => {
+		const environment = new PartsExampleEnvironment()
+		const model = createPartListModel(environment)
 
 		try {
-			model.createPartsList()
+			expect(model.listKeys.get()).toHaveLength(0)
 
-			expect(model.listsRepeat.children.get()).toHaveLength(1)
+			model.createListButton.resolve().onClick()
+
+			expect(model.listKeys.get()).toHaveLength(1)
+
+			const key = model.listKeys.get()[0]!
 
 			await new Promise((resolve) => setTimeout(resolve, 150))
 
-			const child = model.listsRepeat.children.get()[0]
-			const list = child?.node as PartsListView | undefined
-
-			expect(list?.table.rows.get()).toHaveLength(2)
-			expect(model.allLoadedPartsTable.rows.get()).toHaveLength(2)
+			expect(model.partListTable.resolve(key).rows.get()).toHaveLength(2)
+			expect(model.allLoadedPartsTable.resolve().rows.get()).toHaveLength(2)
 		} finally {
 			model.dispose()
 			environment.dispose()

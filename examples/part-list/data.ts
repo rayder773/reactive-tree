@@ -2,6 +2,7 @@ import {
 	type AbortService,
 	type AppRuntime,
 	createAppRuntime,
+	createReactivityPlugin,
 	type DependencyGraphPlugin,
 	dependencyGraphPlugin,
 	type FiltersService,
@@ -9,10 +10,10 @@ import {
 	type MappedListContract,
 	type PaginationService,
 	type RuntimeKey,
-	type RuntimePlugin,
 	type SortingService,
 	type SortingState,
 } from '../../index'
+import { createUiRuntime, type UiRuntime } from '../../core/ui/UiRuntime'
 
 export interface Part {
 	id: string
@@ -59,13 +60,10 @@ interface PartsDomainDependencies {
 	repository: PartRepository
 }
 
-export interface PartsExampleEnvironmentOptions {
-	plugins?: readonly RuntimePlugin[]
-}
-
 export class PartsExampleEnvironment {
 	readonly graph: DependencyGraphPlugin
 	readonly app: AppRuntime
+	readonly ui: UiRuntime
 	readonly parts: MappedListContract<Part>
 	readonly sorting: SortingService<PartSortField>
 	readonly filters: FiltersService<PartFilters>
@@ -75,11 +73,13 @@ export class PartsExampleEnvironment {
 	readonly repository: PartRepository
 	readonly partsDomain: PartsDomain
 
-	constructor(options: PartsExampleEnvironmentOptions = {}) {
+	constructor() {
+		const reactivity = createReactivityPlugin()
 		this.graph = dependencyGraphPlugin()
 		this.app = createAppRuntime({
-			plugins: [this.graph, ...(options.plugins ?? [])],
+			plugins: [this.graph, reactivity],
 		})
+		this.ui = createUiRuntime(reactivity)
 		this.parts = this.app.createMappedList<Part>({
 			name: 'Parts',
 			getId: (part) => part.id,

@@ -1,25 +1,28 @@
 <script lang="ts">
-import { defineComponent, type PropType } from 'vue'
+import { defineComponent, inject, type PropType } from 'vue'
 import type { TextNode } from '../../ui'
+import { REPEAT_CTX_KEY } from './repeatContext'
 import { useReactiveValue } from './useReactiveValue'
 
 export default defineComponent({
-	name: 'AppText',
-	props: {
-		node: {
-			type: Object as PropType<TextNode>,
-			required: true,
-		},
-	},
-	setup(props) {
-		return {
-			isVisible: useReactiveValue(props.node.isVisible),
-			value: useReactiveValue(props.node.value),
-		}
-	},
+  name: 'AppText',
+  props: {
+    node: {
+      type: Object as PropType<TextNode>,
+      required: true,
+    },
+  },
+  setup(props) {
+    const ctx = inject(REPEAT_CTX_KEY, undefined)
+    const resolved = props.node.resolve(ctx)
+    return {
+      isVisible: useReactiveValue(resolved.isVisible),
+      value: useReactiveValue(resolved.value),
+    }
+  },
 })
 </script>
 
 <template>
-	<span v-if="isVisible">{{ value }}</span>
+  <span v-if="isVisible">{{ value }}</span>
 </template>
