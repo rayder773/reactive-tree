@@ -121,13 +121,13 @@ describe('part list render model', () => {
 		const model = createPartListModel(environment)
 
 		try {
-			expect(model.listKeys.get()).toHaveLength(0)
+			expect(model.listsRepeat.items.get()).toHaveLength(0)
 
 			model.createListButton.resolve().onClick()
 
-			expect(model.listKeys.get()).toHaveLength(1)
+			expect(model.listsRepeat.items.get()).toHaveLength(1)
 
-			const key = model.listKeys.get()[0]!
+			const key = model.listsRepeat.items.get()[0]!
 
 			await new Promise((resolve) => setTimeout(resolve, 150))
 

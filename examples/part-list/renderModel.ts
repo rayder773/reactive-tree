@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import type {
 	ButtonNode,
-	ReactiveList,
 	RepeatNode,
 	TableColumn,
 	TableNode,
@@ -24,7 +23,6 @@ export interface PartListModel {
 	readonly partListFilterButton: ButtonNode
 	readonly partListClearFilterButton: ButtonNode
 	readonly partListTable: TableNode<Part>
-	readonly listKeys: ReactiveList<string>
 	dispose(): void
 }
 
@@ -57,22 +55,23 @@ export function createPartListModel(
 ): PartListModel {
 	const { ui } = environment
 	let nextListId = 1
-	const listKeys = ui.createList<string>()
 
 	const createListButton = ui.button('create-list', {
 		text: () => 'Create part list',
 		onClick: () => {
 			const key = `parts:list:${nextListId++}`
 			environment.pagination.setPageSize(2, key)
-			environment.partsDomain.setSorting({ field: 'name', direction: 'asc' }, key)
+			environment.partsDomain.setSorting(
+				{ field: 'name', direction: 'asc' },
+				key,
+			)
 			environment.partsDomain.setFilters({}, key)
-			listKeys.append([key])
 			void environment.partsDomain.loadList(key)
 		},
 	})
 
 	const listsRepeat = ui.repeat('part-lists', {
-		items: () => listKeys.get(),
+		items: () => environment.parts.listKeys(),
 		key: (k) => k,
 	})
 
@@ -183,7 +182,6 @@ export function createPartListModel(
 		partListFilterButton,
 		partListClearFilterButton,
 		partListTable,
-		listKeys,
 		dispose() {},
 	}
 }

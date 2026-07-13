@@ -11,6 +11,7 @@ export class MappedList<TEntity, TId extends string = string>
 	implements MappedListContract<TEntity, TId>
 {
 	private static readonly ALL_ENTITIES_KEY = '__MappedList:all__'
+	private static readonly LIST_KEYS_KEY = '__MappedList:listKeys__'
 
 	private readonly listInstances = new Map<
 		string,
@@ -88,7 +89,16 @@ export class MappedList<TEntity, TId extends string = string>
 			(id) => this.addToAllEntities(id),
 		)
 		this.listInstances.set(normalizedKey, list)
+		this.addToListKeys(normalizedKey)
 		return list
+	}
+
+	listKeys(): readonly string[] {
+		return (
+			(this.listIdsStore.get(
+				MappedList.LIST_KEYS_KEY,
+			) as unknown as readonly string[]) ?? []
+		)
 	}
 
 	hasList(key?: RuntimeKey): boolean {
@@ -96,8 +106,16 @@ export class MappedList<TEntity, TId extends string = string>
 	}
 
 	deleteList(key?: RuntimeKey): void {
+		const normalizedKey = normalizeStoreKey(key)
 		this.listIdsStore.delete(key)
-		this.listInstances.delete(normalizeStoreKey(key))
+		this.listInstances.delete(normalizedKey)
+		const current = this.listKeys()
+		if (current.includes(normalizedKey)) {
+			this.listIdsStore.set(
+				current.filter((k) => k !== normalizedKey) as unknown as readonly TId[],
+				MappedList.LIST_KEYS_KEY,
+			)
+		}
 	}
 
 	clearLists(): void {
@@ -105,6 +123,17 @@ export class MappedList<TEntity, TId extends string = string>
 			this.listIdsStore.delete(list.key)
 		}
 		this.listInstances.clear()
+		this.listIdsStore.delete(MappedList.LIST_KEYS_KEY)
+	}
+
+	private addToListKeys(normalizedKey: string): void {
+		const current = this.listKeys()
+		if (!current.includes(normalizedKey)) {
+			this.listIdsStore.set(
+				[...current, normalizedKey] as unknown as readonly TId[],
+				MappedList.LIST_KEYS_KEY,
+			)
+		}
 	}
 
 	private addToAllEntities(id: TId): void {

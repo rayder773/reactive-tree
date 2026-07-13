@@ -16,6 +16,7 @@ export interface MappedListContract<TEntity, TId extends string = string> {
 	clear(): void
 	values(): readonly TEntity[]
 	list(key?: RuntimeKey): EntityListContract<TEntity, TId>
+	listKeys(): readonly string[]
 	hasList(key?: RuntimeKey): boolean
 	deleteList(key?: RuntimeKey): void
 	clearLists(): void
