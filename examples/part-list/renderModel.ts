@@ -6,7 +6,6 @@ import {
 	createRepeatUtility,
 	createTableUtility,
 	createTextUtility,
-	type ReactiveRef,
 	type ReactivityPlugin,
 	type RepeatNode,
 	type TableColumn,
@@ -76,7 +75,6 @@ export function createPartListModel(
 	const repeat = createRepeatUtility(reactivity, { name: 'PartsRepeats' })
 	const table = createTableUtility(reactivity, { name: 'PartsTables' })
 	const lists = reactivity.ref<readonly PartsListView[]>([])
-	const dataVersion = reactivity.ref(0)
 	let nextListId = 1
 
 	const createListButton = button({
@@ -90,16 +88,11 @@ export function createPartListModel(
 		item: (item) => item,
 	})
 	const allLoadedTitle = text({
-		value: () => {
-			dataVersion.get()
-			return `All loaded parts (${environment.partsDomain.getAllLoadedParts().length})`
-		},
+		value: () =>
+			`All loaded parts (${environment.partsDomain.getAllLoadedParts().length})`,
 	})
 	const allLoadedPartsTable = table({
-		rows: () => {
-			dataVersion.get()
-			return environment.partsDomain.getAllLoadedParts()
-		},
+		rows: () => environment.partsDomain.getAllLoadedParts(),
 		columns: partColumns,
 	})
 
@@ -149,7 +142,6 @@ export function createPartListModel(
 				disabled: () => environment.loading.get(key) === 'loading',
 				onClick: async () => {
 					await environment.partsDomain.loadList(key)
-					touchData(dataVersion)
 				},
 			}),
 			nextPageButton: button({
@@ -163,7 +155,6 @@ export function createPartListModel(
 				},
 				onClick: async () => {
 					await environment.partsDomain.loadNextPage(key)
-					touchData(dataVersion)
 				},
 			}),
 			sortButton: button({
@@ -190,7 +181,6 @@ export function createPartListModel(
 					}
 
 					await environment.partsDomain.loadList(key)
-					touchData(dataVersion)
 				},
 			}),
 			filterButton: button({
@@ -202,7 +192,6 @@ export function createPartListModel(
 						key,
 					)
 					await environment.partsDomain.loadList(key)
-					touchData(dataVersion)
 				},
 			}),
 			clearFilterButton: button({
@@ -211,22 +200,16 @@ export function createPartListModel(
 				onClick: async () => {
 					environment.partsDomain.setFilters({}, key)
 					await environment.partsDomain.loadList(key)
-					touchData(dataVersion)
 				},
 			}),
 			table: table({
-				rows: () => {
-					dataVersion.get()
-					return environment.partsDomain.getList(key)
-				},
+				rows: () => environment.partsDomain.getList(key),
 				columns: partColumns,
 			}),
 		}
 
 		lists.update((current) => [...current, view])
-		void environment.partsDomain
-			.loadList(key)
-			.then(() => touchData(dataVersion))
+		void environment.partsDomain.loadList(key)
 	}
 }
 
@@ -252,10 +235,6 @@ const partColumns: readonly TableColumn<Part>[] = [
 		getValue: (part) => `$${part.price}`,
 	},
 ] as readonly TableColumn<Part>[]
-
-function touchData(dataVersion: ReactiveRef<number>): void {
-	dataVersion.update((version) => version + 1)
-}
 
 function formatFilters(filters: PartFilters): string {
 	const entries = Object.entries(filters)

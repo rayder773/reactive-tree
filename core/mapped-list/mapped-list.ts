@@ -10,7 +10,8 @@ import type {
 export class MappedList<TEntity, TId extends string = string>
 	implements MappedListContract<TEntity, TId>
 {
-	private readonly entityIds = new Set<TId>()
+	private static readonly ALL_ENTITIES_KEY = '__MappedList:all__'
+
 	private readonly listInstances = new Map<
 		string,
 		EntityListContract<TEntity, TId>
@@ -25,7 +26,7 @@ export class MappedList<TEntity, TId extends string = string>
 	set(entity: TEntity): void {
 		const id = this.options.getId(entity)
 		this.entityStore.set(entity, id)
-		this.entityIds.add(id)
+		this.addToAllEntities(id)
 	}
 
 	setMany(entities: readonly TEntity[]): void {
@@ -44,7 +45,11 @@ export class MappedList<TEntity, TId extends string = string>
 
 	delete(id: TId): void {
 		this.entityStore.delete(id)
-		this.entityIds.delete(id)
+		const current = this.listIdsStore.get(MappedList.ALL_ENTITIES_KEY) ?? []
+		this.listIdsStore.set(
+			current.filter((i) => i !== id),
+			MappedList.ALL_ENTITIES_KEY,
+		)
 
 		for (const list of this.listInstances.values()) {
 			list.remove(id)
@@ -54,12 +59,15 @@ export class MappedList<TEntity, TId extends string = string>
 	clear(): void {
 		this.entityStore.clear()
 		this.listIdsStore.clear()
-		this.entityIds.clear()
 		this.listInstances.clear()
 	}
 
 	values(): readonly TEntity[] {
-		return [...this.entityIds]
+		const ids =
+			(this.listIdsStore.get(
+				MappedList.ALL_ENTITIES_KEY,
+			) as readonly TId[] | undefined) ?? []
+		return ids
 			.map((id) => this.entityStore.get(id))
 			.filter((entity): entity is TEntity => entity !== undefined)
 	}
@@ -77,9 +85,7 @@ export class MappedList<TEntity, TId extends string = string>
 			key,
 			this.entityStore,
 			this.listIdsStore,
-			(id) => {
-				this.entityIds.add(id)
-			},
+			(id) => this.addToAllEntities(id),
 		)
 		this.listInstances.set(normalizedKey, list)
 		return list
@@ -95,8 +101,17 @@ export class MappedList<TEntity, TId extends string = string>
 	}
 
 	clearLists(): void {
-		this.listIdsStore.clear()
+		for (const list of this.listInstances.values()) {
+			this.listIdsStore.delete(list.key)
+		}
 		this.listInstances.clear()
+	}
+
+	private addToAllEntities(id: TId): void {
+		const current = this.listIdsStore.get(MappedList.ALL_ENTITIES_KEY) ?? []
+		if (!current.includes(id)) {
+			this.listIdsStore.set([...current, id], MappedList.ALL_ENTITIES_KEY)
+		}
 	}
 }
 
