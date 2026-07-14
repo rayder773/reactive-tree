@@ -1,6 +1,8 @@
 import { createApp } from 'vue'
 import type {
 	ButtonNode,
+	ContextNode,
+	RenderContexts,
 	RepeatNode,
 	TableColumn,
 	TableNode,
@@ -11,6 +13,7 @@ import { type Part, type PartFilters, PartsExampleEnvironment } from './data'
 import PartList from './PartList.vue'
 
 export interface PartListModel {
+	readonly partsContext: ContextNode<PartsContext>
 	readonly createListButton: ButtonNode
 	readonly listsRepeat: RepeatNode<string>
 	readonly allLoadedTitle: TextNode
@@ -54,12 +57,16 @@ export function createPartListModel(
 	environment: PartsExampleEnvironment,
 ): PartListModel {
 	const { ui } = environment
-	let nextListId = 1
 
-	const createListButton = ui.button('create-list', {
-		text: () => 'Create part list',
-		onClick: () => {
-			const key = `parts:list:${nextListId++}`
+	const partsContext = ui.context<PartsContext>('parts', () => ({
+		get allLoadedParts() {
+			return environment.partsDomain.getAllLoadedParts()
+		},
+		get listKeys() {
+			return environment.parts.listKeys()
+		},
+		createList() {
+			const key = getNextListKey(environment.parts.listKeys())
 			environment.pagination.setPageSize(2, key)
 			environment.partsDomain.setSorting(
 				{ field: 'name', direction: 'asc' },
@@ -68,108 +75,143 @@ export function createPartListModel(
 			environment.partsDomain.setFilters({}, key)
 			void environment.partsDomain.loadList(key)
 		},
+	}))
+
+	const partListContext = ui.context<PartListContext, string>(
+		'partList',
+		({ item }) => {
+			return {
+				get id() {
+					return item
+				},
+				get title() {
+					return `Part list ${item}`
+				},
+				get status() {
+					const p = environment.pagination.get(item)
+					const s = environment.sorting.get(item)
+					const f = environment.filters.get(item)
+					return [
+						`page ${p.page}`,
+						`${p.total} total`,
+						`sort ${s.field} ${s.direction}`,
+						formatFilters(f),
+					].join(' | ')
+				},
+				get rows() {
+					return environment.partsDomain.getList(item)
+				},
+				get sortButtonText() {
+					const s = environment.sorting.get(item)
+					return s.direction === 'asc' ? 'Sort price desc' : 'Sort name asc'
+				},
+				get isLoading() {
+					return environment.loading.get(item) === 'loading'
+				},
+				get canLoadNextPage() {
+					const p = environment.pagination.get(item)
+					return p.page * p.pageSize < p.total
+				},
+				async reload() {
+					await environment.partsDomain.loadList(item)
+				},
+				async loadNextPage() {
+					await environment.partsDomain.loadNextPage(item)
+				},
+				async toggleSorting() {
+					const s = environment.sorting.get(item)
+					environment.partsDomain.setSorting(
+						s.direction === 'asc'
+							? { field: 'price', direction: 'desc' }
+							: { field: 'name', direction: 'asc' },
+						item,
+					)
+					await environment.partsDomain.loadList(item)
+				},
+				async filterNorthwind() {
+					environment.partsDomain.setFilters(
+						{ manufacturer: 'Northwind Components' },
+						item,
+					)
+					await environment.partsDomain.loadList(item)
+				},
+				async clearFilters() {
+					environment.partsDomain.setFilters({}, item)
+					await environment.partsDomain.loadList(item)
+				},
+			}
+		},
+	)
+
+	const createListButton = ui.button('create-list', {
+		text: () => 'Create part list',
+		onClick: ({ contexts }) => getPartsContext(contexts).createList(),
 	})
 
 	const listsRepeat = ui.repeat('part-lists', {
-		items: () => environment.parts.listKeys(),
+		items: ({ contexts }) => getPartsContext(contexts).listKeys,
 		key: (k) => k,
+		context: partListContext,
 	})
 
 	const allLoadedTitle = ui.text('all-loaded-title', {
-		value: () =>
-			`All loaded parts (${environment.partsDomain.getAllLoadedParts().length})`,
+		value: ({ contexts }) =>
+			`All loaded parts (${getPartsContext(contexts).allLoadedParts.length})`,
 	})
 
 	const allLoadedPartsTable = ui.table('all-loaded-table', {
-		rows: () => environment.partsDomain.getAllLoadedParts(),
+		rows: ({ contexts }) => getPartsContext(contexts).allLoadedParts,
 		columns: partColumns,
 	})
 
 	const partListTitle = ui.text('part-list:title', {
-		value: (key: string) => `Part list ${key}`,
+		value: ({ contexts }) => getPartListContext(contexts).title,
 	})
 
 	const partListStatus = ui.text('part-list:status', {
-		value: (key: string) => {
-			const p = environment.pagination.get(key)
-			const s = environment.sorting.get(key)
-			const f = environment.filters.get(key)
-			return [
-				`page ${p.page}`,
-				`${p.total} total`,
-				`sort ${s.field} ${s.direction}`,
-				formatFilters(f),
-			].join(' | ')
-		},
+		value: ({ contexts }) => getPartListContext(contexts).status,
 	})
 
 	const partListReloadButton = ui.button('part-list:reload', {
 		text: () => 'Load',
-		disabled: (key: string) => environment.loading.get(key) === 'loading',
-		onClick: async (key: string) => {
-			await environment.partsDomain.loadList(key)
-		},
+		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
+		onClick: ({ contexts }) => getPartListContext(contexts).reload(),
 	})
 
 	const partListNextPageButton = ui.button('part-list:next-page', {
 		text: () => 'Next page',
-		disabled: (key: string) => {
-			const p = environment.pagination.get(key)
-			return (
-				environment.loading.get(key) === 'loading' ||
-				p.page * p.pageSize >= p.total
-			)
+		disabled: ({ contexts }) => {
+			const partList = getPartListContext(contexts)
+			return partList.isLoading || !partList.canLoadNextPage
 		},
-		onClick: async (key: string) => {
-			await environment.partsDomain.loadNextPage(key)
-		},
+		onClick: ({ contexts }) => getPartListContext(contexts).loadNextPage(),
 	})
 
 	const partListSortButton = ui.button('part-list:sort', {
-		text: (key: string) => {
-			const s = environment.sorting.get(key)
-			return s.direction === 'asc' ? 'Sort price desc' : 'Sort name asc'
-		},
-		disabled: (key: string) => environment.loading.get(key) === 'loading',
-		onClick: async (key: string) => {
-			const s = environment.sorting.get(key)
-			environment.partsDomain.setSorting(
-				s.direction === 'asc'
-					? { field: 'price', direction: 'desc' }
-					: { field: 'name', direction: 'asc' },
-				key,
-			)
-			await environment.partsDomain.loadList(key)
-		},
+		text: ({ contexts }) => getPartListContext(contexts).sortButtonText,
+		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
+		onClick: ({ contexts }) => getPartListContext(contexts).toggleSorting(),
 	})
 
 	const partListFilterButton = ui.button('part-list:filter', {
 		text: () => 'Filter Northwind',
-		disabled: (key: string) => environment.loading.get(key) === 'loading',
-		onClick: async (key: string) => {
-			environment.partsDomain.setFilters(
-				{ manufacturer: 'Northwind Components' },
-				key,
-			)
-			await environment.partsDomain.loadList(key)
-		},
+		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
+		onClick: ({ contexts }) => getPartListContext(contexts).filterNorthwind(),
 	})
 
 	const partListClearFilterButton = ui.button('part-list:clear-filter', {
 		text: () => 'Clear filters',
-		disabled: (key: string) => environment.loading.get(key) === 'loading',
-		onClick: async (key: string) => {
-			environment.partsDomain.setFilters({}, key)
-			await environment.partsDomain.loadList(key)
-		},
+		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
+		onClick: ({ contexts }) => getPartListContext(contexts).clearFilters(),
 	})
 
 	const partListTable = ui.table('part-list:table', {
-		rows: (key: string) => environment.partsDomain.getList(key),
+		rows: ({ contexts }) => getPartListContext(contexts).rows,
 		columns: partColumns,
 	})
 
 	return {
+		partsContext,
 		createListButton,
 		listsRepeat,
 		allLoadedTitle,
@@ -184,6 +226,46 @@ export function createPartListModel(
 		partListTable,
 		dispose() {},
 	}
+}
+
+interface PartsContext {
+	readonly listKeys: readonly string[]
+	readonly allLoadedParts: readonly Part[]
+	createList(): void
+}
+
+interface PartListContext {
+	readonly id: string
+	readonly title: string
+	readonly status: string
+	readonly rows: readonly Part[]
+	readonly sortButtonText: string
+	readonly isLoading: boolean
+	readonly canLoadNextPage: boolean
+	reload(): Promise<void>
+	loadNextPage(): Promise<void>
+	toggleSorting(): Promise<void>
+	filterNorthwind(): Promise<void>
+	clearFilters(): Promise<void>
+}
+
+function getPartsContext(contexts: RenderContexts): PartsContext {
+	return contexts.parts as PartsContext
+}
+
+function getPartListContext(contexts: RenderContexts): PartListContext {
+	return contexts.partList as PartListContext
+}
+
+function getNextListKey(keys: readonly string[]): string {
+	const nextNumber =
+		keys.reduce((max, key) => {
+			const match = /^parts:list:(\d+)$/.exec(key)
+			if (match === null) return max
+			return Math.max(max, Number(match[1]))
+		}, 0) + 1
+
+	return `parts:list:${nextNumber}`
 }
 
 const partColumns: readonly TableColumn<Part>[] = [

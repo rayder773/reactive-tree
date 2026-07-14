@@ -1,6 +1,7 @@
 export { default as AppButton } from './AppButton.vue'
+export { default as AppContext } from './AppContext.vue'
 export { default as AppRepeat } from './AppRepeat.vue'
 export { default as AppTable } from './AppTable.vue'
 export { default as AppText } from './AppText.vue'
-export { REPEAT_CTX_KEY } from './repeatContext'
+export { RENDER_CTX_KEY } from './renderContext'
 export { useReactiveValue } from './useReactiveValue'

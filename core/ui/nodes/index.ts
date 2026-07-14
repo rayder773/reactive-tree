@@ -1,19 +1,33 @@
 export { createButtonNode } from './button'
+export { createContextNode } from './context'
 export type {
-  ButtonNode,
-  ButtonOptions,
-  ContextualFn,
-  RepeatNode,
-  RepeatOptions,
-  ResolvedButtonNode,
-  ResolvedTableNode,
-  ResolvedTextNode,
-  TableColumn,
-  TableNode,
-  TableOptions,
-  TextNode,
-  TextOptions,
-  UiNodeBase,
+	ButtonNode,
+	ButtonOptions,
+	ContextCallbackArgs,
+	ContextFactory,
+	ContextNode,
+	ContextualFn,
+	RenderCallbackArgs,
+	RenderContext,
+	RenderContexts,
+	RepeatNode,
+	RepeatOptions,
+	ResolvedButtonNode,
+	ResolvedContextNode,
+	ResolvedRepeatNode,
+	ResolvedTableNode,
+	ResolvedTextNode,
+	TableColumn,
+	TableNode,
+	TableOptions,
+	TextNode,
+	TextOptions,
+	UiNodeBase,
+} from './nodeTypes'
+export {
+	createChildRenderContext,
+	EMPTY_RENDER_CONTEXT,
+	normalizeRenderContext,
 } from './nodeTypes'
 export { createRepeatNode } from './repeat'
 export { createTableNode } from './table'

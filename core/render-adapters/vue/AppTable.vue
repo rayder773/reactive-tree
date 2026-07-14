@@ -1,49 +1,53 @@
 <script lang="ts">
 import { defineComponent, inject, type PropType } from 'vue'
-import type { TableColumn, TableNode } from '../../ui'
-import { REPEAT_CTX_KEY } from './repeatContext'
+import {
+	EMPTY_RENDER_CONTEXT,
+	type TableColumn,
+	type TableNode,
+} from '../../ui'
+import { RENDER_CTX_KEY } from './renderContext'
 import { useReactiveValue } from './useReactiveValue'
 
 export default defineComponent({
-  name: 'AppTable',
-  props: {
-    node: {
-      type: Object as PropType<TableNode<unknown>>,
-      required: true,
-    },
-  },
-  setup(props) {
-    const ctx = inject(REPEAT_CTX_KEY, undefined)
-    const resolved = props.node.resolve(ctx)
-    return {
-      columns: props.node.columns,
-      formatValue,
-      getRowKey,
-      isVisible: useReactiveValue(resolved.isVisible),
-      rows: useReactiveValue(resolved.rows),
-    }
-  },
+	name: 'AppTable',
+	props: {
+		node: {
+			type: Object as PropType<TableNode<unknown>>,
+			required: true,
+		},
+	},
+	setup(props) {
+		const ctx = inject(RENDER_CTX_KEY, EMPTY_RENDER_CONTEXT)
+		const resolved = props.node.resolve(ctx)
+		return {
+			columns: props.node.columns,
+			formatValue,
+			getRowKey,
+			isVisible: useReactiveValue(resolved.isVisible),
+			rows: useReactiveValue(resolved.rows),
+		}
+	},
 })
 
 function getRowKey(row: unknown, index: number): string {
-  if (
-    typeof row === 'object' &&
-    row !== null &&
-    'id' in row &&
-    typeof row.id === 'string'
-  ) {
-    return row.id
-  }
+	if (
+		typeof row === 'object' &&
+		row !== null &&
+		'id' in row &&
+		typeof row.id === 'string'
+	) {
+		return row.id
+	}
 
-  return String(index)
+	return String(index)
 }
 
 function formatValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return ''
-  }
+	if (value === null || value === undefined) {
+		return ''
+	}
 
-  return String(value)
+	return String(value)
 }
 
 export type AppTableColumn<TRow> = TableColumn<TRow>

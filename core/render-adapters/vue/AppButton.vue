@@ -1,28 +1,28 @@
 <script lang="ts">
 import { defineComponent, inject, type PropType } from 'vue'
-import type { ButtonNode } from '../../ui'
-import { REPEAT_CTX_KEY } from './repeatContext'
+import { type ButtonNode, EMPTY_RENDER_CONTEXT } from '../../ui'
+import { RENDER_CTX_KEY } from './renderContext'
 import { useReactiveValue } from './useReactiveValue'
 
 export default defineComponent({
-  name: 'AppButton',
-  props: {
-    node: {
-      type: Object as PropType<ButtonNode>,
-      required: true,
-    },
-  },
-  setup(props) {
-    const ctx = inject(REPEAT_CTX_KEY, undefined)
-    const resolved = props.node.resolve(ctx)
-    const run = () => void Promise.resolve(resolved.onClick())
-    return {
-      disabled: useReactiveValue(resolved.disabled),
-      isVisible: useReactiveValue(resolved.isVisible),
-      run,
-      text: useReactiveValue(resolved.text),
-    }
-  },
+	name: 'AppButton',
+	props: {
+		node: {
+			type: Object as PropType<ButtonNode>,
+			required: true,
+		},
+	},
+	setup(props) {
+		const ctx = inject(RENDER_CTX_KEY, EMPTY_RENDER_CONTEXT)
+		const resolved = props.node.resolve(ctx)
+		const run = () => void Promise.resolve(resolved.onClick())
+		return {
+			disabled: useReactiveValue(resolved.disabled),
+			isVisible: useReactiveValue(resolved.isVisible),
+			run,
+			text: useReactiveValue(resolved.text),
+		}
+	},
 })
 </script>
 

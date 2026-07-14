@@ -1,16 +1,28 @@
 import type { ReactivityApi } from '../../reactivity'
-import { resolveContextualFn, type RepeatNode, type RepeatOptions } from './nodeTypes'
+import {
+	createResolveCache,
+	type RepeatNode,
+	type RepeatOptions,
+	resolveContextualFn,
+} from './nodeTypes'
 
 export function createRepeatNode<TItem>(
-  reactivity: ReactivityApi,
-  id: string,
-  options: RepeatOptions<TItem>,
+	reactivity: ReactivityApi,
+	id: string,
+	options: RepeatOptions<TItem>,
 ): RepeatNode<TItem> {
-  return {
-    id,
-    type: 'repeat',
-    items: resolveContextualFn(reactivity, options.items, undefined),
-    isVisible: resolveContextualFn(reactivity, options.isVisible ?? true, undefined),
-    getKey: options.key,
-  }
+	return {
+		id,
+		type: 'repeat',
+		context: options.context,
+		resolve: createResolveCache((ctx) => ({
+			items: resolveContextualFn(reactivity, options.items, ctx),
+			isVisible: resolveContextualFn(
+				reactivity,
+				options.isVisible ?? true,
+				ctx,
+			),
+		})),
+		getKey: options.key,
+	}
 }
