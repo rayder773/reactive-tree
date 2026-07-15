@@ -66,3 +66,8 @@ export {
 export { createUiRuntime, type UiRuntime } from './ui/UiRuntime'
 export { type ReactiveList } from './ui/reactive-list'
 export * from './ui/nodes'
+export { ApiError } from './mock/api-error'
+export { createRepository } from './mock/create-repository'
+export { success, error, loading, networkError } from './mock/outcome'
+export type { OutcomeDescriptor } from './mock/outcome'
+export { createScenario } from './mock/scenario-builder'
