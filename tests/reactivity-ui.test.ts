@@ -8,11 +8,11 @@ import {
 import { createUiRuntime } from '../core/ui/UiRuntime'
 import { PartsExampleEnvironment } from '../examples/part-list/data'
 import { createPartListModel } from '../examples/part-list/renderModel'
-import { createAppRuntime, createReactivityPlugin } from '../index'
+import { createAppRuntime, createReactivity } from '../index'
 
-describe('ReactivityPlugin', () => {
+describe('Reactivity', () => {
 	it('tracks plain store reads from computed values', () => {
-		const reactivity = createReactivityPlugin()
+		const reactivity = createReactivity()
 		const app = createAppRuntime({ plugins: [reactivity] })
 		const store = app.createStore<number>({ name: 'CounterStore' })
 		const value = reactivity.computed(() => store.get('count') ?? 0)
@@ -29,7 +29,7 @@ describe('ReactivityPlugin', () => {
 	})
 
 	it('keeps store-key invalidation scoped', () => {
-		const reactivity = createReactivityPlugin()
+		const reactivity = createReactivity()
 		const app = createAppRuntime({ plugins: [reactivity] })
 		const store = app.createStore<number>({ name: 'CounterStore' })
 		const value = reactivity.computed(() => store.get('first') ?? 0)
@@ -45,7 +45,7 @@ describe('ReactivityPlugin', () => {
 	})
 
 	it('tracks refs used by computed values', () => {
-		const reactivity = createReactivityPlugin()
+		const reactivity = createReactivity()
 		const source = reactivity.ref(1)
 		const doubled = reactivity.computed(() => source.get() * 2)
 
@@ -59,8 +59,8 @@ describe('ReactivityPlugin', () => {
 
 describe('UiRuntime nodes', () => {
 	it('creates and retrieves button node with resolve()', () => {
-		const reactivity = createReactivityPlugin()
-		const ui = createUiRuntime(reactivity)
+		const reactivity = createReactivity()
+		const ui = createUiRuntime({ reactivity })
 		const onClick = vi.fn()
 
 		const node = ui.button('save', {
@@ -78,8 +78,8 @@ describe('UiRuntime nodes', () => {
 	})
 
 	it('resolves parametrized node with context', () => {
-		const reactivity = createReactivityPlugin()
-		const ui = createUiRuntime(reactivity)
+		const reactivity = createReactivity()
+		const ui = createUiRuntime({ reactivity })
 		const itemContext = ui.context<{ label: string }, string>(
 			'item',
 			({ item }) => ({ label: `Label for ${item}` }),
@@ -99,8 +99,8 @@ describe('UiRuntime nodes', () => {
 	})
 
 	it('caches resolved instances per context', () => {
-		const reactivity = createReactivityPlugin()
-		const ui = createUiRuntime(reactivity)
+		const reactivity = createReactivity()
+		const ui = createUiRuntime({ reactivity })
 		const valueContext = ui.context<string, string>('value', ({ item }) => item)
 
 		const node = ui.text('cached', {
@@ -117,8 +117,8 @@ describe('UiRuntime nodes', () => {
 	})
 
 	it('creates reactive list that triggers computed re-evaluation', () => {
-		const reactivity = createReactivityPlugin()
-		const ui = createUiRuntime(reactivity)
+		const reactivity = createReactivity()
+		const ui = createUiRuntime({ reactivity })
 		const list = ui.createList<string>()
 
 		const node = ui.repeat('items', {
@@ -134,8 +134,8 @@ describe('UiRuntime nodes', () => {
 	})
 
 	it('rejects duplicate context names in one render branch', () => {
-		const reactivity = createReactivityPlugin()
-		const ui = createUiRuntime(reactivity)
+		const reactivity = createReactivity()
+		const ui = createUiRuntime({ reactivity })
 		const first = ui.context('same', () => ({ value: 1 }))
 		const second = ui.context('same', () => ({ value: 2 }))
 		const ctx = resolveContext(first)

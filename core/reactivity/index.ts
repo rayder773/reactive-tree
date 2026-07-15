@@ -1,3 +1,4 @@
+export { createReactivity, type Reactivity } from './reactivity'
 export type {
 	Accessor,
 	ReactiveComputed,
@@ -6,7 +7,3 @@ export type {
 	ReactiveSubscription,
 	ReactivityApi,
 } from './reactivity.types'
-export {
-	createReactivityPlugin,
-	type ReactivityPlugin,
-} from './reactivityPlugin'

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createAppRuntime, createReactivityPlugin } from '../index'
-import type { ListService } from '../index'
+import { createAppRuntime, createReactivity } from '../index'
 
 interface TestEntity {
 	id: string
@@ -9,7 +8,7 @@ interface TestEntity {
 }
 
 function makeApp() {
-	return createAppRuntime({ plugins: [createReactivityPlugin()] })
+	return createAppRuntime({ plugins: [createReactivity()] })
 }
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
@@ -34,8 +33,14 @@ describe('ListService — server scenario', () => {
 
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
-			.withServerSorting({ name: 'S', initial: { field: 'name', direction: 'asc' } })
-			.withServerFilters<Record<string, unknown>>({ name: 'F', initial: () => ({ active: true }) })
+			.withServerSorting({
+				name: 'S',
+				initial: { field: 'name', direction: 'asc' },
+			})
+			.withServerFilters<Record<string, unknown>>({
+				name: 'F',
+				initial: () => ({ active: true }),
+			})
 			.withServerPagination()
 			.withServerQuery(queryFn, {
 				mapResponse: (r: { items: readonly TestEntity[]; total: number }) => r,
@@ -95,9 +100,16 @@ describe('ListService — server scenario', () => {
 
 	it('loadNextPage appends items', async () => {
 		const app = makeApp()
-		const queryFn = vi.fn()
-			.mockResolvedValueOnce({ items: [{ id: 'a', name: 'A', value: 1 }], total: 2 })
-			.mockResolvedValueOnce({ items: [{ id: 'b', name: 'B', value: 2 }], total: 2 })
+		const queryFn = vi
+			.fn()
+			.mockResolvedValueOnce({
+				items: [{ id: 'a', name: 'A', value: 1 }],
+				total: 2,
+			})
+			.mockResolvedValueOnce({
+				items: [{ id: 'b', name: 'B', value: 2 }],
+				total: 2,
+			})
 
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
@@ -122,7 +134,10 @@ describe('ListService — sorting and filters reset page', () => {
 		const app = makeApp()
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
-			.withServerSorting({ name: 'S', initial: { field: 'name', direction: 'asc' } })
+			.withServerSorting({
+				name: 'S',
+				initial: { field: 'name', direction: 'asc' },
+			})
 			.withServerPagination()
 			.withServerQuery(vi.fn().mockResolvedValue({ items: [], total: 0 }), {
 				mapResponse: (r: { items: readonly TestEntity[]; total: number }) => r,
@@ -142,7 +157,10 @@ describe('ListService — sorting and filters reset page', () => {
 		const app = makeApp()
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
-			.withServerFilters<Record<string, unknown>>({ name: 'F', initial: () => ({}) })
+			.withServerFilters<Record<string, unknown>>({
+				name: 'F',
+				initial: () => ({}),
+			})
 			.withServerPagination()
 			.withServerQuery(vi.fn().mockResolvedValue({ items: [], total: 0 }), {
 				mapResponse: (r: { items: readonly TestEntity[]; total: number }) => r,
@@ -186,13 +204,17 @@ describe('ListService — getById / getByIds', () => {
 			.withByIdsQuery(byIdsFn)
 			.build()
 
-		await expect(svc.getById('missing')).rejects.toThrow('Entity not found: missing')
+		await expect(svc.getById('missing')).rejects.toThrow(
+			'Entity not found: missing',
+		)
 		app.dispose()
 	})
 
 	it('getByIds loads only missing ids in one batch', async () => {
 		const app = makeApp()
-		const byIdsFn = vi.fn().mockResolvedValue([{ id: 'b', name: 'B', value: 2 }])
+		const byIdsFn = vi
+			.fn()
+			.mockResolvedValue([{ id: 'b', name: 'B', value: 2 }])
 
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
@@ -271,7 +293,10 @@ describe('ListService — hybrid scenario', () => {
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
 			.withQuery(vi.fn().mockResolvedValue([]))
-			.withClientSorting({ name: 'S', initial: { field: 'name', direction: 'asc' } })
+			.withClientSorting({
+				name: 'S',
+				initial: { field: 'name', direction: 'asc' },
+			})
 			.withClientPagination()
 			.build()
 
@@ -288,8 +313,14 @@ describe('ListService — client-only scenario', () => {
 
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
-			.withClientSorting({ name: 'S', initial: { field: 'name', direction: 'asc' } })
-			.withClientFilters<Record<string, unknown>>({ name: 'F', initial: () => ({}) })
+			.withClientSorting({
+				name: 'S',
+				initial: { field: 'name', direction: 'asc' },
+			})
+			.withClientFilters<Record<string, unknown>>({
+				name: 'F',
+				initial: () => ({}),
+			})
 			.build()
 
 		await expect(svc.loadList()).rejects.toThrow('query is not configured')
@@ -301,8 +332,14 @@ describe('ListService — client-only scenario', () => {
 
 		const svc = app
 			.createListService<TestEntity>({ name: 'Test', getId: (e) => e.id })
-			.withClientSorting({ name: 'S', initial: { field: 'name', direction: 'asc' } })
-			.withClientFilters<Record<string, unknown>>({ name: 'F', initial: () => ({ tag: 'all' }) })
+			.withClientSorting({
+				name: 'S',
+				initial: { field: 'name', direction: 'asc' },
+			})
+			.withClientFilters<Record<string, unknown>>({
+				name: 'F',
+				initial: () => ({ tag: 'all' }),
+			})
 			.build()
 
 		expect(svc.sorting()).toEqual({ field: 'name', direction: 'asc' })

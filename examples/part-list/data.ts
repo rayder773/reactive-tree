@@ -2,7 +2,7 @@ import { createUiRuntime, type UiRuntime } from '../../core/ui/UiRuntime'
 import {
 	type AppRuntime,
 	createAppRuntime,
-	createReactivityPlugin,
+	createReactivity,
 	type ListService,
 } from '../../index'
 import {
@@ -23,9 +23,9 @@ export class PartsExampleEnvironment {
 	readonly repository: PartRepository
 
 	constructor() {
-		const reactivity = createReactivityPlugin()
+		const reactivity = createReactivity()
 		this.app = createAppRuntime({ plugins: [reactivity] })
-		this.ui = createUiRuntime(reactivity)
+		this.ui = createUiRuntime({ reactivity })
 		this.repository = createPartsRepository()
 
 		const repository = this.repository

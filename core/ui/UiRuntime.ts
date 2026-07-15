@@ -37,7 +37,12 @@ export interface UiRuntime {
 	createList<T>(): ReactiveList<T>
 }
 
-export function createUiRuntime(reactivity: ReactivityApi): UiRuntime {
+export interface UiRuntimeOptions {
+	reactivity: ReactivityApi
+}
+
+export function createUiRuntime(options: UiRuntimeOptions): UiRuntime {
+	const { reactivity } = options
 	const texts = new Map<string, TextNode>()
 	const buttons = new Map<string, ButtonNode>()
 	const contexts = new Map<string, ContextNode<unknown, unknown>>()

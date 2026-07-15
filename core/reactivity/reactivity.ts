@@ -16,11 +16,11 @@ interface TrackedComputation {
 	trackSource(source: ReactiveSource<unknown>): void
 }
 
-export interface ReactivityPlugin extends RuntimePlugin, ReactivityApi {
+export interface Reactivity extends RuntimePlugin, ReactivityApi {
 	dispose(): void
 }
 
-export function createReactivityPlugin(): ReactivityPlugin {
+export function createReactivity(): Reactivity {
 	const subscribersByDependency = new Map<
 		DependencyKey,
 		Set<ReactiveComputation>
@@ -93,8 +93,8 @@ export function createReactivityPlugin(): ReactivityPlugin {
 		}
 	}
 
-	const api: ReactivityPlugin = {
-		name: 'ReactivityPlugin',
+	const api: Reactivity = {
+		name: 'Reactivity',
 		afterStoreGet(context) {
 			if (context.method === 'get' || context.method === 'has') {
 				trackStoreRead(context)
