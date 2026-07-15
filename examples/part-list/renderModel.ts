@@ -2,7 +2,6 @@ import { createApp } from 'vue'
 import type {
 	ButtonNode,
 	ContextNode,
-	RenderContexts,
 	RepeatNode,
 	TableNode,
 	TextNode,
@@ -167,90 +166,90 @@ export function createPartListModel(
 
 	const createListButton = ui.button('create-list', {
 		text: () => 'Create part list',
-		onClick: ({ contexts }) => getPartsContext(contexts).createList(),
+		onClick: ({ contexts }) => partsContext.get(contexts).createList(),
 	})
 
 	const listsRepeat = ui.repeat('part-lists', {
-		items: ({ contexts }) => getPartsContext(contexts).listKeys,
+		items: ({ contexts }) => partsContext.get(contexts).listKeys,
 		key: (k) => k,
 		context: partListContext,
 	})
 
 	const allLoadedTitle = ui.text('all-loaded-title', {
 		value: ({ contexts }) =>
-			`All loaded parts (${getPartsContext(contexts).allLoadedParts.length})`,
+			`All loaded parts (${partsContext.get(contexts).allLoadedParts.length})`,
 	})
 
 	const allLoadedPartsTable = ui.table('all-loaded-table', {
 		rows: ({ contexts }) =>
-			getPartsContext(contexts).allLoadedParts.map((p) => p.id),
+			partsContext.get(contexts).allLoadedParts.map((p) => p.id),
 		columns: partColumns,
 		rowContext: partRowContext,
 		rowKey: (id) => id,
 	})
 
 	const partListTitle = ui.text('part-list:title', {
-		value: ({ contexts }) => getPartListContext(contexts).title,
+		value: ({ contexts }) => partListContext.get(contexts).title,
 	})
 
 	const partListStatus = ui.text('part-list:status', {
-		value: ({ contexts }) => getPartListContext(contexts).status,
+		value: ({ contexts }) => partListContext.get(contexts).status,
 	})
 
 	const partListReloadButton = ui.button('part-list:reload', {
 		text: () => 'Load',
-		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
-		onClick: ({ contexts }) => getPartListContext(contexts).reload(),
+		disabled: ({ contexts }) => partListContext.get(contexts).isLoading,
+		onClick: ({ contexts }) => partListContext.get(contexts).reload(),
 	})
 
 	const partListNextPageButton = ui.button('part-list:next-page', {
 		text: () => 'Next page',
 		disabled: ({ contexts }) => {
-			const partList = getPartListContext(contexts)
+			const partList = partListContext.get(contexts)
 			return partList.isLoading || !partList.canLoadNextPage
 		},
-		onClick: ({ contexts }) => getPartListContext(contexts).loadNextPage(),
+		onClick: ({ contexts }) => partListContext.get(contexts).loadNextPage(),
 	})
 
 	const partListSortButton = ui.button('part-list:sort', {
-		text: ({ contexts }) => getPartListContext(contexts).sortButtonText,
-		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
-		onClick: ({ contexts }) => getPartListContext(contexts).toggleSorting(),
+		text: ({ contexts }) => partListContext.get(contexts).sortButtonText,
+		disabled: ({ contexts }) => partListContext.get(contexts).isLoading,
+		onClick: ({ contexts }) => partListContext.get(contexts).toggleSorting(),
 	})
 
 	const partListFilterButton = ui.button('part-list:filter', {
 		text: () => 'Filter Northwind',
-		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
-		onClick: ({ contexts }) => getPartListContext(contexts).filterNorthwind(),
+		disabled: ({ contexts }) => partListContext.get(contexts).isLoading,
+		onClick: ({ contexts }) => partListContext.get(contexts).filterNorthwind(),
 	})
 
 	const partListClearFilterButton = ui.button('part-list:clear-filter', {
 		text: () => 'Clear filters',
-		disabled: ({ contexts }) => getPartListContext(contexts).isLoading,
-		onClick: ({ contexts }) => getPartListContext(contexts).clearFilters(),
+		disabled: ({ contexts }) => partListContext.get(contexts).isLoading,
+		onClick: ({ contexts }) => partListContext.get(contexts).clearFilters(),
 	})
 
 	const partListTable = ui.table('part-list:table', {
-		rows: ({ contexts }) => getPartListContext(contexts).rows.map((p) => p.id),
+		rows: ({ contexts }) => partListContext.get(contexts).rows.map((p) => p.id),
 		columns: partColumns,
 		rowContext: partRowContext,
 		rowKey: (id) => id,
 	})
 
 	const partCellId = ui.text('part-cell:id', {
-		value: ({ contexts }) => getPartRowContext(contexts).id,
+		value: ({ contexts }) => partRowContext.get(contexts).id,
 	})
 
 	const partCellName = ui.text('part-cell:name', {
-		value: ({ contexts }) => getPartRowContext(contexts).name,
+		value: ({ contexts }) => partRowContext.get(contexts).name,
 	})
 
 	const partCellManufacturer = ui.text('part-cell:manufacturer', {
-		value: ({ contexts }) => getPartRowContext(contexts).manufacturer,
+		value: ({ contexts }) => partRowContext.get(contexts).manufacturer,
 	})
 
 	const partCellPrice = ui.text('part-cell:price', {
-		value: ({ contexts }) => getPartRowContext(contexts).price,
+		value: ({ contexts }) => partRowContext.get(contexts).price,
 	})
 
 	return {
@@ -303,17 +302,6 @@ interface PartRowContext {
 	readonly price: string
 }
 
-function getPartsContext(contexts: RenderContexts): PartsContext {
-	return contexts.parts as PartsContext
-}
-
-function getPartListContext(contexts: RenderContexts): PartListContext {
-	return contexts.partList as PartListContext
-}
-
-function getPartRowContext(contexts: RenderContexts): PartRowContext {
-	return contexts.partRow as PartRowContext
-}
 
 function getNextListKey(keys: readonly string[]): string {
 	const nextNumber =

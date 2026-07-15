@@ -69,6 +69,7 @@ export interface ResolvedContextNode<TValue> {
 export interface ContextNode<TValue = unknown, TItem = unknown>
 	extends UiNodeBase {
 	readonly type: 'context'
+	get(contexts: RenderContexts): TValue
 	resolve(ctx?: RenderContext, item?: TItem): ResolvedContextNode<TValue>
 }
 

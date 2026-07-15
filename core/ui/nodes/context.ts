@@ -4,6 +4,7 @@ import {
 	type ContextNode,
 	EMPTY_RENDER_CONTEXT,
 	type RenderContext,
+	type RenderContexts,
 } from './nodeTypes'
 
 export function createContextNode<TValue, TItem = void>(
@@ -14,6 +15,9 @@ export function createContextNode<TValue, TItem = void>(
 	return {
 		id,
 		type: 'context',
+		get(contexts: RenderContexts): TValue {
+			return contexts[id] as TValue
+		},
 		resolve(ctx?: RenderContext, item?: TItem) {
 			const resolvedCtx = ctx ?? EMPTY_RENDER_CONTEXT
 
