@@ -2,29 +2,24 @@
 
 Small TypeScript runtime for application architecture experiments.
 
-This is not a UI framework and not an application framework. It provides a central runtime for creating stores, services, registered objects, lifecycle events, and plugins.
+This is not a UI framework and not an application framework. It provides a central runtime for creating stores, services, and store-based plugins.
 
 ## Core Idea
 
-Everything should be created or registered through one runtime:
+Stores and shared services are created through one runtime:
 
 ```ts
-import { createAppRuntime, dependencyGraphPlugin } from './index'
+import { createAppRuntime } from './index'
 
-const graph = dependencyGraphPlugin()
-
-const app = createAppRuntime({
-	plugins: [graph],
-})
+const app = createAppRuntime()
 ```
 
 The runtime is responsible for:
 
 - creating stores
 - creating infrastructure services
-- registering objects
-- wrapping methods and stores
-- notifying plugins about lifecycle events
+- wrapping stores
+- notifying plugins about store reads and writes
 - supporting future extensions without changing services
 
 ## Store
@@ -90,62 +85,6 @@ await loading.run(async () => {
 await abort.run(async (signal) => {
 	await fetch('/api/users/1', { signal })
 }, 'load-user:user-1')
-```
-
-## Registration
-
-Domain objects are registered through the runtime:
-
-```ts
-const workflow = app.register(new UserWorkflow(users, loading))
-```
-
-Runtime method calls are observed automatically after registration:
-
-```ts
-await workflow.loadUser('user-1')
-```
-
-## Dependency Graph Plugin
-
-`dependencyGraphPlugin()` observes runtime lifecycle events and builds a graph.
-
-It tracks:
-
-- registered objects
-- runtime-created service/store dependencies
-- method calls
-- nested calls
-- async callback boundaries
-- store reads
-- store writes
-- store deletes
-
-Print the graph:
-
-```ts
-graph.print()
-```
-
-Read it programmatically:
-
-```ts
-const snapshot = graph.getSnapshot()
-```
-
-Store operations include store name, key, and short value summary:
-
-```txt
-LoadingStore.set(load-user:user-1 = loading)
-LoadingStore.set(load-user:user-1 = idle)
-UsersStore.set(user-1 = Object)
-TodosStore.set(page:1|todos|user-1 = Array(1))
-```
-
-Detailed event logging is disabled by default. Enable it only when needed:
-
-```ts
-dependencyGraphPlugin({ trace: true })
 ```
 
 ## Examples

@@ -3,8 +3,6 @@ import {
 	type AppRuntime,
 	createAppRuntime,
 	createReactivityPlugin,
-	type DependencyGraphPlugin,
-	dependencyGraphPlugin,
 	type ListService,
 } from '../../index'
 import {
@@ -19,7 +17,6 @@ import {
 export type { Part, PartFilters, PartSortField }
 
 export class PartsExampleEnvironment {
-	readonly graph: DependencyGraphPlugin
 	readonly app: AppRuntime
 	readonly ui: UiRuntime
 	readonly parts: ListService<Part>
@@ -27,8 +24,7 @@ export class PartsExampleEnvironment {
 
 	constructor() {
 		const reactivity = createReactivityPlugin()
-		this.graph = dependencyGraphPlugin()
-		this.app = createAppRuntime({ plugins: [this.graph, reactivity] })
+		this.app = createAppRuntime({ plugins: [reactivity] })
 		this.ui = createUiRuntime(reactivity)
 		this.repository = createPartsRepository()
 
@@ -59,8 +55,3 @@ export class PartsExampleEnvironment {
 		this.app.dispose()
 	}
 }
-
-export const mainListKey = ['parts', 'main'] as const
-export const expensiveListKey = ['parts', 'search', 'expensive'] as const
-export const manufacturerListKey = ['parts', 'manufacturer', 'northwind'] as const
-export const searchListKey = ['parts', 'search'] as const

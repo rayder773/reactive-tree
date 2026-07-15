@@ -1,19 +1,15 @@
-import type { AsyncExecutor } from '../types/runtime'
 import type { Store, StoreKey } from '../types/store'
 
 export type LoadingStatus = 'idle' | 'loading' | 'error'
 
 export class LoadingService {
-	constructor(
-		private readonly store: Store<LoadingStatus>,
-		private readonly executeAsync: AsyncExecutor,
-	) {}
+	constructor(private readonly store: Store<LoadingStatus>) {}
 
 	async run<T>(callback: () => T | Promise<T>, key?: StoreKey): Promise<T> {
 		this.store.set('loading', key)
 
 		try {
-			const result = await this.executeAsync('callback', callback)
+			const result = await callback()
 			this.store.set('idle', key)
 			return result
 		} catch (error) {

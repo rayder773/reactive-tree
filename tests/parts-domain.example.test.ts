@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import {
-	mainListKey,
-	PartsExampleEnvironment,
-	searchListKey,
-} from '../examples/part-list/data'
+import { PartsExampleEnvironment } from '../examples/part-list/data'
+
+const mainListKey = ['parts', 'main'] as const
+const searchListKey = ['parts', 'search'] as const
 
 describe('parts domain example', () => {
 	it('uses one entity map with independent keyed list state', async () => {
@@ -12,14 +11,23 @@ describe('parts domain example', () => {
 		try {
 			environment.parts.setPageSize(2, mainListKey)
 			environment.parts.setPageSize(2, searchListKey)
-			environment.parts.setSorting({ field: 'price', direction: 'desc' }, mainListKey)
-			environment.parts.setSorting({ field: 'price', direction: 'desc' }, searchListKey)
+			environment.parts.setSorting(
+				{ field: 'price', direction: 'desc' },
+				mainListKey,
+			)
+			environment.parts.setSorting(
+				{ field: 'price', direction: 'desc' },
+				searchListKey,
+			)
 			environment.parts.setFilters({ maxPrice: 84 }, searchListKey)
 
 			await environment.parts.loadList(mainListKey)
 			await environment.parts.loadList(searchListKey)
 
-			environment.parts.setSorting({ field: 'manufacturer', direction: 'asc' }, searchListKey)
+			environment.parts.setSorting(
+				{ field: 'manufacturer', direction: 'asc' },
+				searchListKey,
+			)
 			environment.parts.setFilters({ minPrice: 50 }, mainListKey)
 
 			expect(
@@ -31,8 +39,14 @@ describe('parts domain example', () => {
 			expect(
 				environment.parts.values().filter((part) => part.id === 'p-100'),
 			).toHaveLength(1)
-			expect(environment.parts.list(mainListKey).getIds()).toEqual(['p-200', 'p-100'])
-			expect(environment.parts.list(searchListKey).getIds()).toEqual(['p-100', 'p-300'])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual([
+				'p-200',
+				'p-100',
+			])
+			expect(environment.parts.list(searchListKey).getIds()).toEqual([
+				'p-100',
+				'p-300',
+			])
 			expect(environment.parts.pagination(mainListKey)).toEqual({
 				page: 1,
 				pageSize: 2,
@@ -61,13 +75,20 @@ describe('parts domain example', () => {
 				price: 85,
 			})
 
-			expect(environment.parts.list(mainListKey).get()[1]?.name).toBe('Updated board')
-			expect(environment.parts.list(searchListKey).get()[0]?.name).toBe('Updated board')
+			expect(environment.parts.list(mainListKey).get()[1]?.name).toBe(
+				'Updated board',
+			)
+			expect(environment.parts.list(searchListKey).get()[0]?.name).toBe(
+				'Updated board',
+			)
 
 			environment.parts.list(mainListKey).clear()
 
 			expect(environment.parts.list(mainListKey).getIds()).toEqual([])
-			expect(environment.parts.list(searchListKey).getIds()).toEqual(['p-100', 'p-300'])
+			expect(environment.parts.list(searchListKey).getIds()).toEqual([
+				'p-100',
+				'p-300',
+			])
 
 			environment.parts.delete('p-100')
 
@@ -83,11 +104,17 @@ describe('parts domain example', () => {
 
 		try {
 			environment.parts.setPageSize(1, mainListKey)
-			environment.parts.setSorting({ field: 'price', direction: 'desc' }, mainListKey)
+			environment.parts.setSorting(
+				{ field: 'price', direction: 'desc' },
+				mainListKey,
+			)
 			await environment.parts.loadList(mainListKey)
 			await environment.parts.loadNextPage(mainListKey)
 
-			expect(environment.parts.list(mainListKey).getIds()).toEqual(['p-200', 'p-100'])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual([
+				'p-200',
+				'p-100',
+			])
 			expect(
 				environment.parts
 					.values()
@@ -104,13 +131,19 @@ describe('parts domain example', () => {
 
 		try {
 			environment.parts.setPageSize(1, mainListKey)
-			environment.parts.setSorting({ field: 'price', direction: 'desc' }, mainListKey)
+			environment.parts.setSorting(
+				{ field: 'price', direction: 'desc' },
+				mainListKey,
+			)
 			await environment.parts.loadList(mainListKey)
 			await environment.parts.loadNextPage(mainListKey)
 			environment.parts.setPageSize(2, mainListKey)
 			await environment.parts.loadList(mainListKey)
 
-			expect(environment.parts.list(mainListKey).getIds()).toEqual(['p-200', 'p-100'])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual([
+				'p-200',
+				'p-100',
+			])
 			expect(
 				environment.parts
 					.values()

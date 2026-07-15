@@ -1,7 +1,6 @@
 import {
 	type AbortService,
 	createAppRuntime,
-	dependencyGraphPlugin,
 	type LoadingService,
 	type PaginationService,
 	type StoreContract,
@@ -74,18 +73,15 @@ const basicRuntimeExample: ExampleDefinition = {
 	id: 'basic-runtime',
 	title: 'Basic Runtime',
 	description:
-		'Runtime creation, stores, infrastructure services, nested calls, and dependency graph output.',
+		'Runtime creation, stores, infrastructure services, and domain workflow composition.',
 	mount({ element }): ExampleInstance {
-		const graph = dependencyGraphPlugin()
-		const app = createAppRuntime({ plugins: [graph] })
+		const app = createAppRuntime()
 		const users = app.createStore<User>({ name: 'UsersStore' })
 		const todos = app.createStore<Todo[]>({ name: 'TodosStore' })
 		const loading = app.createLoadingService()
 		const abort = app.createAbortService()
 		const pagination = app.createPaginationService()
-		const workflow = app.register(
-			new UserWorkflow(users, todos, loading, abort, pagination),
-		)
+		const workflow = new UserWorkflow(users, todos, loading, abort, pagination)
 
 		element.innerHTML = `
 			<div class="runtime-example">
@@ -93,7 +89,6 @@ const basicRuntimeExample: ExampleDefinition = {
 					<button data-action="load-user" type="button">Load user</button>
 					<button data-action="abort-load" type="button">Abort previous load</button>
 					<button data-action="next-page" type="button">Next page</button>
-					<button data-action="print-graph" type="button">Print graph</button>
 				</div>
 				<pre class="runtime-example__output"></pre>
 			</div>
@@ -128,15 +123,6 @@ const basicRuntimeExample: ExampleDefinition = {
 			{ signal: abortController.signal },
 		)
 
-		element.querySelector('[data-action="print-graph"]')?.addEventListener(
-			'click',
-			() => {
-				graph.print()
-				render()
-			},
-			{ signal: abortController.signal },
-		)
-
 		// render()
 
 		return {
@@ -155,7 +141,6 @@ const basicRuntimeExample: ExampleDefinition = {
 			// 		loading: loading.get(getUserRequestKey('user-1')),
 			// 		user: users.get('user-1'),
 			// 		pagination: pagination.get('todos'),
-			// 		graph: graph.getSnapshot(),
 			// 	},
 			// 	null,
 			// 	2,

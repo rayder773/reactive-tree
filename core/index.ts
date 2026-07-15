@@ -1,5 +1,8 @@
+export type {
+	ListService,
+	ListServiceOptions,
+} from './list-service/list-service.types'
 export { ListServiceBuilder } from './list-service/list-service-builder'
-export type { ListService, ListServiceOptions } from './list-service/list-service.types'
 export { MappedList } from './mapped-list/mapped-list'
 export type {
 	EntityListContract,
@@ -7,14 +10,11 @@ export type {
 	MappedListOptions,
 	RuntimeKey,
 } from './mapped-list/mapped-list.types'
-export {
-	type DependencyGraphEdge,
-	type DependencyGraphNode,
-	type DependencyGraphPlugin,
-	type DependencyGraphPluginOptions,
-	type DependencyGraphSnapshot,
-	dependencyGraphPlugin,
-} from './plugins/dependencyGraphPlugin'
+export { ApiError } from './mock/api-error'
+export { createRepository } from './mock/create-repository'
+export type { OutcomeDescriptor } from './mock/outcome'
+export { error, loading, networkError, success } from './mock/outcome'
+export { createScenario } from './mock/scenario-builder'
 export * from './reactivity'
 export * from './render-adapters'
 export { AppRuntime } from './runtime/AppRuntime'
@@ -36,38 +36,16 @@ export type {
 	SortingState,
 } from './services/sorting/sorting-service.types'
 export { Store } from './store/Store'
-export type {
-	AppRuntimeLifecycleTarget,
-	AsyncEventContext,
-	AsyncResultEventContext,
-	CustomEventContext,
-	MethodErrorEventContext,
-	MethodEventContext,
-	MethodResultEventContext,
-	RegistrationEventContext,
-	RuntimeErrorEventContext,
-	RuntimeEventContext,
-	RuntimePlugin,
-	StoreEventContext,
-} from './types/lifecycle'
+export type { RuntimePlugin, StoreEventContext } from './types/lifecycle'
 export type {
 	AppRuntimeOptions,
-	AsyncExecutor,
 	CreateStoreOptions,
-	DependencyDeclarationOptions,
-	DependencyTarget,
-	RegisterOptions,
 } from './types/runtime'
 export {
 	DEFAULT_STORE_KEY,
 	type Store as StoreContract,
 	type StoreKey,
 } from './types/store'
-export { createUiRuntime, type UiRuntime } from './ui/UiRuntime'
-export { type ReactiveList } from './ui/reactive-list'
 export * from './ui/nodes'
-export { ApiError } from './mock/api-error'
-export { createRepository } from './mock/create-repository'
-export { success, error, loading, networkError } from './mock/outcome'
-export type { OutcomeDescriptor } from './mock/outcome'
-export { createScenario } from './mock/scenario-builder'
+export type { ReactiveList } from './ui/reactive-list'
+export { createUiRuntime, type UiRuntime } from './ui/UiRuntime'

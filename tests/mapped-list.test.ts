@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAppRuntime, dependencyGraphPlugin } from '../index'
+import { createAppRuntime } from '../index'
 
 interface Part {
 	id: string
@@ -133,31 +133,6 @@ describe('MappedList', () => {
 		expect(mapped.list('search').getIds()).toEqual(['p-300'])
 		expect(mapped.list('main')).not.toBe(main)
 		expect(mapped.list('main').getIds()).toEqual([])
-	})
-
-	it('emits store events for entity and list operations', () => {
-		const graph = dependencyGraphPlugin()
-		const app = createAppRuntime({ plugins: [graph] })
-		const mapped = app.createMappedList<Part>({
-			name: 'Parts',
-			getId: (part) => part.id,
-		})
-
-		mapped.set(parts[0])
-		mapped.get('p-100')
-		mapped.list('main').set([parts[0]])
-		mapped.list('main').get()
-		mapped.list('main').clear()
-		mapped.delete('p-100')
-
-		const labels = graph.getSnapshot().nodes.map((node) => node.label)
-
-		expect(labels).toContain('Parts.Entities.set(p-100 = Object)')
-		expect(labels).toContain('Parts.Entities.get(p-100)')
-		expect(labels).toContain('Parts.Entities.delete(p-100)')
-		expect(labels).toContain('Parts.Lists.set(main = Array(1))')
-		expect(labels).toContain('Parts.Lists.get(main)')
-		expect(labels).toContain('Parts.Lists.set(main = Array(0))')
 	})
 })
 

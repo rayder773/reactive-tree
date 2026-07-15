@@ -1,11 +1,7 @@
-import type { AsyncExecutor } from '../types/runtime'
 import type { Store, StoreKey } from '../types/store'
 
 export class AbortService {
-	constructor(
-		private readonly store: Store<AbortController>,
-		private readonly executeAsync: AsyncExecutor,
-	) {}
+	constructor(private readonly store: Store<AbortController>) {}
 
 	async run<T>(
 		callback: (signal: AbortSignal) => T | Promise<T>,
@@ -20,6 +16,6 @@ export class AbortService {
 		const controller = new AbortController()
 		this.store.set(controller, key)
 
-		return this.executeAsync('callback', () => callback(controller.signal))
+		return callback(controller.signal)
 	}
 }
