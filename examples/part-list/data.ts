@@ -1,19 +1,13 @@
+import { createUiRuntime, type UiRuntime } from '../../core/ui/UiRuntime'
 import {
-	type AbortService,
 	type AppRuntime,
 	createAppRuntime,
 	createReactivityPlugin,
 	type DependencyGraphPlugin,
 	dependencyGraphPlugin,
-	type FiltersService,
-	type LoadingService,
-	type MappedListContract,
-	type PaginationService,
-	type RuntimeKey,
-	type SortingService,
+	type ListService,
 	type SortingState,
 } from '../../index'
-import { createUiRuntime, type UiRuntime } from '../../core/ui/UiRuntime'
 
 export interface Part {
 	id: string
@@ -50,201 +44,47 @@ interface PartRepository {
 	queryParts(query: PartsQuery, signal: AbortSignal): Promise<PartsQueryResult>
 }
 
-interface PartsDomainDependencies {
-	parts: MappedListContract<Part>
-	sorting: SortingService<PartSortField>
-	filters: FiltersService<PartFilters>
-	loading: LoadingService
-	abort: AbortService
-	pagination: PaginationService
-	repository: PartRepository
-}
-
 export class PartsExampleEnvironment {
 	readonly graph: DependencyGraphPlugin
 	readonly app: AppRuntime
 	readonly ui: UiRuntime
-	readonly parts: MappedListContract<Part>
-	readonly sorting: SortingService<PartSortField>
-	readonly filters: FiltersService<PartFilters>
-	readonly loading: LoadingService
-	readonly abort: AbortService
-	readonly pagination: PaginationService
+	readonly parts: ListService<Part>
 	readonly repository: PartRepository
-	readonly partsDomain: PartsDomain
 
 	constructor() {
 		const reactivity = createReactivityPlugin()
 		this.graph = dependencyGraphPlugin()
-		this.app = createAppRuntime({
-			plugins: [this.graph, reactivity],
-		})
+		this.app = createAppRuntime({ plugins: [this.graph, reactivity] })
 		this.ui = createUiRuntime(reactivity)
-		this.parts = this.app.createMappedList<Part>({
-			name: 'Parts',
-			getId: (part) => part.id,
-		})
-		this.sorting = this.app.createSortingService<PartSortField>({
-			name: 'PartsSorting',
-			initial: {
-				field: 'name',
-				direction: 'asc',
-			},
-		})
-		this.filters = this.app.createFiltersService<PartFilters>({
-			name: 'PartsFilters',
-			initial: () => ({}),
-		})
-		this.loading = this.app.createLoadingService()
-		this.abort = this.app.createAbortService()
-		this.pagination = this.app.createPaginationService()
 		this.repository = this.app.register(new FakePartsRepository(), {
 			name: 'FakePartsRepository',
 		})
-		this.partsDomain = this.app.register(
-			new PartsDomain({
-				parts: this.parts,
-				sorting: this.sorting,
-				filters: this.filters,
-				loading: this.loading,
-				abort: this.abort,
-				pagination: this.pagination,
-				repository: this.repository,
-			}),
-			{ name: 'PartsDomain' },
-		)
+
+		const repository = this.repository
+		this.parts = this.app
+			.createListService<Part>({ name: 'Parts', getId: (p) => p.id })
+			.withLoading()
+			.withAbort()
+			.withServerSorting<PartSortField>({
+				name: 'PartsSorting',
+				initial: { field: 'name', direction: 'asc' },
+			})
+			.withServerFilters<PartFilters>({
+				name: 'PartsFilters',
+				initial: () => ({}),
+			})
+			.withServerPagination()
+			.withServerQuery(
+				(params, signal) =>
+					repository.queryParts(params as unknown as PartsQuery, signal),
+				{ mapResponse: (r) => ({ items: r.items, total: r.total }) },
+			)
+			.withByIdsQuery((ids, signal) => repository.getPartsByIds(ids, signal))
+			.build()
 	}
 
 	dispose(): void {
 		this.app.dispose()
-	}
-}
-
-export class PartsDomain {
-	constructor(private readonly dependencies: PartsDomainDependencies) {}
-
-	async getPartById(id: string): Promise<Part> {
-		const cached = this.dependencies.parts.get(id)
-
-		if (cached !== undefined) {
-			return cached
-		}
-
-		const parts = await this.loadPartsByIds([id])
-		const part = parts[0]
-
-		if (part === undefined) {
-			throw new Error(`Part was not found: ${id}`)
-		}
-
-		return part
-	}
-
-	async getPartsByIds(ids: readonly string[]): Promise<readonly Part[]> {
-		const missingIds = ids.filter((id) => !this.dependencies.parts.has(id))
-
-		if (missingIds.length > 0) {
-			await this.loadPartsByIds(missingIds)
-		}
-
-		return ids
-			.map((id) => this.dependencies.parts.get(id))
-			.filter((part): part is Part => part !== undefined)
-	}
-
-	async loadList(key?: RuntimeKey): Promise<readonly Part[]> {
-		return this.loadListPage(key, 'replace')
-	}
-
-	async loadNextPage(key?: RuntimeKey): Promise<readonly Part[]> {
-		const current = this.dependencies.pagination.get(key)
-		this.dependencies.pagination.setPage(current.page + 1, key)
-		return this.loadListPage(key, 'append')
-	}
-
-	getList(key?: RuntimeKey): readonly Part[] {
-		return this.dependencies.parts.list(key).get()
-	}
-
-	getListIds(key?: RuntimeKey): readonly string[] {
-		return this.dependencies.parts.list(key).getIds()
-	}
-
-	getAllLoadedParts(): readonly Part[] {
-		return this.dependencies.parts.values()
-	}
-
-	setSorting(value: SortingState<PartSortField>, key?: RuntimeKey): void {
-		this.dependencies.sorting.set(value, key)
-		this.dependencies.pagination.setPage(1, key)
-	}
-
-	setFilters(value: PartFilters, key?: RuntimeKey): void {
-		this.dependencies.filters.set(value, key)
-		this.dependencies.pagination.setPage(1, key)
-	}
-
-	updatePart(part: Part): void {
-		this.dependencies.parts.set(part)
-	}
-
-	deletePart(id: string): void {
-		this.dependencies.parts.delete(id)
-	}
-
-	clearList(key?: RuntimeKey): void {
-		this.dependencies.parts.list(key).clear()
-	}
-
-	private async loadListPage(
-		key: RuntimeKey | undefined,
-		mode: 'replace' | 'append',
-	): Promise<readonly Part[]> {
-		const list = this.dependencies.parts.list(key)
-		const pagination = this.dependencies.pagination.get(key)
-		const sorting = this.dependencies.sorting.get(key)
-		const filters = this.dependencies.filters.get(key)
-		const query: PartsQuery = {
-			offset: (pagination.page - 1) * pagination.pageSize,
-			limit: pagination.pageSize,
-			sorting,
-			filters,
-		}
-
-		return this.dependencies.loading.run(async () => {
-			const result = await this.dependencies.abort.run(
-				(signal) => this.dependencies.repository.queryParts(query, signal),
-				key,
-			)
-
-			if (mode === 'append') {
-				list.append(result.items)
-			} else {
-				list.set(result.items)
-			}
-
-			this.dependencies.pagination.setTotal(result.total, key)
-			return this.getList(key)
-		}, key)
-	}
-
-	private async loadPartsByIds(ids: readonly string[]): Promise<readonly Part[]> {
-		// Один запрос для всех ID, но каждый помечается отдельно как loading.
-		// Ключ уникален для батча — не отменяет параллельные загрузки других партов.
-		const batchKey = ['parts', 'batch', ...ids]
-		const request = this.dependencies.abort.run(async (signal) => {
-			const parts = await this.dependencies.repository.getPartsByIds(ids, signal)
-			this.dependencies.parts.setMany(parts)
-			return parts
-		}, batchKey)
-
-		await Promise.all(
-			ids.map((id) =>
-				this.dependencies.loading.run(() => request, getPartRequestKey(id)),
-			),
-		)
-
-		return request
 	}
 }
 
@@ -329,6 +169,7 @@ class FakePartsRepository implements PartRepository {
 
 			return true
 		})
+
 		const sorted = [...filtered].sort((left, right) => {
 			const direction = query.sorting.direction === 'asc' ? 1 : -1
 			const leftValue = left[query.sorting.field]
@@ -360,10 +201,6 @@ export const manufacturerListKey = [
 	'northwind',
 ] as const
 export const searchListKey = ['parts', 'search'] as const
-
-function getPartRequestKey(partId: string): string {
-	return `load-part:${partId}`
-}
 
 function delay(ms: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {

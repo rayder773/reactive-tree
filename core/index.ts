@@ -1,3 +1,5 @@
+export { ListServiceBuilder } from './list-service/list-service-builder'
+export type { ListService, ListServiceOptions } from './list-service/list-service.types'
 export { MappedList } from './mapped-list/mapped-list'
 export type {
 	EntityListContract,

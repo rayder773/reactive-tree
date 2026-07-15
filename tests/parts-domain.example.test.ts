@@ -10,26 +10,17 @@ describe('parts domain example', () => {
 		const environment = new PartsExampleEnvironment()
 
 		try {
-			environment.pagination.setPageSize(2, mainListKey)
-			environment.pagination.setPageSize(2, searchListKey)
-			environment.partsDomain.setSorting(
-				{ field: 'price', direction: 'desc' },
-				mainListKey,
-			)
-			environment.partsDomain.setSorting(
-				{ field: 'price', direction: 'desc' },
-				searchListKey,
-			)
-			environment.partsDomain.setFilters({ maxPrice: 84 }, searchListKey)
+			environment.parts.setPageSize(2, mainListKey)
+			environment.parts.setPageSize(2, searchListKey)
+			environment.parts.setSorting({ field: 'price', direction: 'desc' }, mainListKey)
+			environment.parts.setSorting({ field: 'price', direction: 'desc' }, searchListKey)
+			environment.parts.setFilters({ maxPrice: 84 }, searchListKey)
 
-			await environment.partsDomain.loadList(mainListKey)
-			await environment.partsDomain.loadList(searchListKey)
+			await environment.parts.loadList(mainListKey)
+			await environment.parts.loadList(searchListKey)
 
-			environment.partsDomain.setSorting(
-				{ field: 'manufacturer', direction: 'asc' },
-				searchListKey,
-			)
-			environment.partsDomain.setFilters({ minPrice: 50 }, mainListKey)
+			environment.parts.setSorting({ field: 'manufacturer', direction: 'asc' }, searchListKey)
+			environment.parts.setFilters({ minPrice: 50 }, mainListKey)
 
 			expect(
 				environment.parts
@@ -40,65 +31,48 @@ describe('parts domain example', () => {
 			expect(
 				environment.parts.values().filter((part) => part.id === 'p-100'),
 			).toHaveLength(1)
-			expect(environment.partsDomain.getListIds(mainListKey)).toEqual([
-				'p-200',
-				'p-100',
-			])
-			expect(environment.partsDomain.getListIds(searchListKey)).toEqual([
-				'p-100',
-				'p-300',
-			])
-			expect(environment.pagination.get(mainListKey)).toEqual({
+			expect(environment.parts.list(mainListKey).getIds()).toEqual(['p-200', 'p-100'])
+			expect(environment.parts.list(searchListKey).getIds()).toEqual(['p-100', 'p-300'])
+			expect(environment.parts.pagination(mainListKey)).toEqual({
 				page: 1,
 				pageSize: 2,
 				total: 5,
 			})
-			expect(environment.pagination.get(searchListKey)).toEqual({
+			expect(environment.parts.pagination(searchListKey)).toEqual({
 				page: 1,
 				pageSize: 2,
 				total: 4,
 			})
-			expect(environment.sorting.get(mainListKey)).toEqual({
+			expect(environment.parts.sorting(mainListKey)).toEqual({
 				field: 'price',
 				direction: 'desc',
 			})
-			expect(environment.sorting.get(searchListKey)).toEqual({
+			expect(environment.parts.sorting(searchListKey)).toEqual({
 				field: 'manufacturer',
 				direction: 'asc',
 			})
-			expect(environment.filters.get(mainListKey)).toEqual({
-				minPrice: 50,
-			})
-			expect(environment.filters.get(searchListKey)).toEqual({ maxPrice: 84 })
+			expect(environment.parts.filters(mainListKey)).toEqual({ minPrice: 50 })
+			expect(environment.parts.filters(searchListKey)).toEqual({ maxPrice: 84 })
 
-			environment.partsDomain.updatePart({
+			environment.parts.update({
 				id: 'p-100',
 				name: 'Updated board',
 				manufacturer: 'Northwind Components',
 				price: 85,
 			})
 
-			expect(environment.partsDomain.getList(mainListKey)[1]?.name).toBe(
-				'Updated board',
-			)
-			expect(environment.partsDomain.getList(searchListKey)[0]?.name).toBe(
-				'Updated board',
-			)
+			expect(environment.parts.list(mainListKey).get()[1]?.name).toBe('Updated board')
+			expect(environment.parts.list(searchListKey).get()[0]?.name).toBe('Updated board')
 
-			environment.partsDomain.clearList(mainListKey)
+			environment.parts.list(mainListKey).clear()
 
-			expect(environment.partsDomain.getListIds(mainListKey)).toEqual([])
-			expect(environment.partsDomain.getListIds(searchListKey)).toEqual([
-				'p-100',
-				'p-300',
-			])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual([])
+			expect(environment.parts.list(searchListKey).getIds()).toEqual(['p-100', 'p-300'])
 
-			environment.partsDomain.deletePart('p-100')
+			environment.parts.delete('p-100')
 
-			expect(environment.partsDomain.getListIds(mainListKey)).toEqual([])
-			expect(environment.partsDomain.getListIds(searchListKey)).toEqual([
-				'p-300',
-			])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual([])
+			expect(environment.parts.list(searchListKey).getIds()).toEqual(['p-300'])
 		} finally {
 			environment.dispose()
 		}
@@ -108,18 +82,12 @@ describe('parts domain example', () => {
 		const environment = new PartsExampleEnvironment()
 
 		try {
-			environment.pagination.setPageSize(1, mainListKey)
-			environment.partsDomain.setSorting(
-				{ field: 'price', direction: 'desc' },
-				mainListKey,
-			)
-			await environment.partsDomain.loadList(mainListKey)
-			await environment.partsDomain.loadNextPage(mainListKey)
+			environment.parts.setPageSize(1, mainListKey)
+			environment.parts.setSorting({ field: 'price', direction: 'desc' }, mainListKey)
+			await environment.parts.loadList(mainListKey)
+			await environment.parts.loadNextPage(mainListKey)
 
-			expect(environment.partsDomain.getListIds(mainListKey)).toEqual([
-				'p-200',
-				'p-100',
-			])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual(['p-200', 'p-100'])
 			expect(
 				environment.parts
 					.values()
@@ -135,20 +103,14 @@ describe('parts domain example', () => {
 		const environment = new PartsExampleEnvironment()
 
 		try {
-			environment.pagination.setPageSize(1, mainListKey)
-			environment.partsDomain.setSorting(
-				{ field: 'price', direction: 'desc' },
-				mainListKey,
-			)
-			await environment.partsDomain.loadList(mainListKey)
-			await environment.partsDomain.loadNextPage(mainListKey)
-			environment.pagination.setPageSize(2, mainListKey)
-			await environment.partsDomain.loadList(mainListKey)
+			environment.parts.setPageSize(1, mainListKey)
+			environment.parts.setSorting({ field: 'price', direction: 'desc' }, mainListKey)
+			await environment.parts.loadList(mainListKey)
+			await environment.parts.loadNextPage(mainListKey)
+			environment.parts.setPageSize(2, mainListKey)
+			await environment.parts.loadList(mainListKey)
 
-			expect(environment.partsDomain.getListIds(mainListKey)).toEqual([
-				'p-200',
-				'p-100',
-			])
+			expect(environment.parts.list(mainListKey).getIds()).toEqual(['p-200', 'p-100'])
 			expect(
 				environment.parts
 					.values()
@@ -164,10 +126,7 @@ describe('parts domain example', () => {
 		const environment = new PartsExampleEnvironment()
 
 		try {
-			const parts = await environment.partsDomain.getPartsByIds([
-				'p-100',
-				'p-300',
-			])
+			const parts = await environment.parts.getByIds(['p-100', 'p-300'])
 
 			expect(parts.map((part) => part.id)).toEqual(['p-100', 'p-300'])
 			expect(

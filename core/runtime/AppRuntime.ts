@@ -1,3 +1,5 @@
+import { createListServiceBuilder, ListServiceBuilder } from '../list-service/list-service-builder'
+import type { ListServiceOptions } from '../list-service/list-service.types'
 import { MappedList } from '../mapped-list/mapped-list'
 import type { MappedListOptions } from '../mapped-list/mapped-list.types'
 import { AbortService } from '../services/AbortService'
@@ -118,6 +120,13 @@ export class AppRuntime {
 		})
 		this.declareDependency(service, store, { type: 'uses' })
 		return service
+	}
+
+	createListService<TEntity, TId extends string = string>(
+		options: ListServiceOptions<TEntity, TId>,
+	): ListServiceBuilder<TEntity, TId> {
+		const mappedList = this.createMappedList<TEntity, TId>(options)
+		return createListServiceBuilder<TEntity, TId>(this, options, mappedList)
 	}
 
 	createFiltersService<TFilters extends Record<string, unknown>>(

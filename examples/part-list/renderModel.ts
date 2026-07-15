@@ -55,27 +55,22 @@ const partListExample: ExampleDefinition = {
 
 export default partListExample
 
-export function createPartListModel(
-	environment: PartsExampleEnvironment,
-): PartListModel {
+export function createPartListModel(environment: PartsExampleEnvironment): PartListModel {
 	const { ui } = environment
 
 	const partsContext = ui.context<PartsContext>('parts', () => ({
 		get allLoadedParts() {
-			return environment.partsDomain.getAllLoadedParts()
+			return environment.parts.values()
 		},
 		get listKeys() {
 			return environment.parts.listKeys()
 		},
 		createList() {
 			const key = getNextListKey(environment.parts.listKeys())
-			environment.pagination.setPageSize(2, key)
-			environment.partsDomain.setSorting(
-				{ field: 'name', direction: 'asc' },
-				key,
-			)
-			environment.partsDomain.setFilters({}, key)
-			void environment.partsDomain.loadList(key)
+			environment.parts.setPageSize(2, key)
+			environment.parts.setSorting({ field: 'name', direction: 'asc' }, key)
+			environment.parts.setFilters({}, key)
+			void environment.parts.loadList(key)
 		},
 	}))
 
@@ -90,56 +85,53 @@ export function createPartListModel(
 					return `Part list ${item}`
 				},
 				get status() {
-					const p = environment.pagination.get(item)
-					const s = environment.sorting.get(item)
-					const f = environment.filters.get(item)
+					const p = environment.parts.pagination(item)
+					const s = environment.parts.sorting(item)
+					const f = environment.parts.filters(item)
 					return [
 						`page ${p.page}`,
 						`${p.total} total`,
 						`sort ${s.field} ${s.direction}`,
-						formatFilters(f),
+						formatFilters(f as PartFilters),
 					].join(' | ')
 				},
 				get rows() {
-					return environment.partsDomain.getList(item)
+					return environment.parts.list(item).get()
 				},
 				get sortButtonText() {
-					const s = environment.sorting.get(item)
+					const s = environment.parts.sorting(item)
 					return s.direction === 'asc' ? 'Sort price desc' : 'Sort name asc'
 				},
 				get isLoading() {
-					return environment.loading.get(item) === 'loading'
+					return environment.parts.loading(item) === 'loading'
 				},
 				get canLoadNextPage() {
-					const p = environment.pagination.get(item)
+					const p = environment.parts.pagination(item)
 					return p.page * p.pageSize < p.total
 				},
 				async reload() {
-					await environment.partsDomain.loadList(item)
+					await environment.parts.loadList(item)
 				},
 				async loadNextPage() {
-					await environment.partsDomain.loadNextPage(item)
+					await environment.parts.loadNextPage(item)
 				},
 				async toggleSorting() {
-					const s = environment.sorting.get(item)
-					environment.partsDomain.setSorting(
+					const s = environment.parts.sorting(item)
+					environment.parts.setSorting(
 						s.direction === 'asc'
 							? { field: 'price', direction: 'desc' }
 							: { field: 'name', direction: 'asc' },
 						item,
 					)
-					await environment.partsDomain.loadList(item)
+					await environment.parts.loadList(item)
 				},
 				async filterNorthwind() {
-					environment.partsDomain.setFilters(
-						{ manufacturer: 'Northwind Components' },
-						item,
-					)
-					await environment.partsDomain.loadList(item)
+					environment.parts.setFilters({ manufacturer: 'Northwind Components' }, item)
+					await environment.parts.loadList(item)
 				},
 				async clearFilters() {
-					environment.partsDomain.setFilters({}, item)
-					await environment.partsDomain.loadList(item)
+					environment.parts.setFilters({}, item)
+					await environment.parts.loadList(item)
 				},
 			}
 		},
@@ -301,7 +293,6 @@ interface PartRowContext {
 	readonly manufacturer: string
 	readonly price: string
 }
-
 
 function getNextListKey(keys: readonly string[]): string {
 	const nextNumber =
