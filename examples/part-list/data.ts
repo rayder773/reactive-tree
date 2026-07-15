@@ -130,7 +130,7 @@ export class PartsDomain {
 			return cached
 		}
 
-		const parts = await this.loadPartsByIds([id], getPartRequestKey(id))
+		const parts = await this.loadPartsByIds([id])
 		const part = parts[0]
 
 		if (part === undefined) {
@@ -144,7 +144,7 @@ export class PartsDomain {
 		const missingIds = ids.filter((id) => !this.dependencies.parts.has(id))
 
 		if (missingIds.length > 0) {
-			await this.loadPartsByIds(missingIds, ['parts', 'batch'])
+			await this.loadPartsByIds(missingIds)
 		}
 
 		return ids
@@ -228,20 +228,23 @@ export class PartsDomain {
 		}, key)
 	}
 
-	private async loadPartsByIds(
-		ids: readonly string[],
-		key: RuntimeKey,
-	): Promise<readonly Part[]> {
-		return this.dependencies.loading.run(async () => {
-			return this.dependencies.abort.run(async (signal) => {
-				const parts = await this.dependencies.repository.getPartsByIds(
-					ids,
-					signal,
-				)
-				this.dependencies.parts.setMany(parts)
-				return parts
-			}, key)
-		}, key)
+	private async loadPartsByIds(ids: readonly string[]): Promise<readonly Part[]> {
+		// Один запрос для всех ID, но каждый помечается отдельно как loading.
+		// Ключ уникален для батча — не отменяет параллельные загрузки других партов.
+		const batchKey = ['parts', 'batch', ...ids]
+		const request = this.dependencies.abort.run(async (signal) => {
+			const parts = await this.dependencies.repository.getPartsByIds(ids, signal)
+			this.dependencies.parts.setMany(parts)
+			return parts
+		}, batchKey)
+
+		await Promise.all(
+			ids.map((id) =>
+				this.dependencies.loading.run(() => request, getPartRequestKey(id)),
+			),
+		)
+
+		return request
 	}
 }
 
