@@ -35,12 +35,6 @@ export interface UiNodeBase {
 	readonly type: string
 }
 
-export interface TableColumn<TRow> {
-	readonly id: string
-	readonly header: string
-	getValue(row: TRow): unknown
-}
-
 // Resolved shapes returned by node.resolve(ctx?)
 
 export interface ResolvedTextNode {
@@ -57,6 +51,7 @@ export interface ResolvedButtonNode {
 
 export interface ResolvedTableNode<TRow> {
 	readonly rows: ReactiveComputed<readonly TRow[]>
+	readonly columns: ReactiveComputed<readonly string[]>
 	readonly isVisible: ReactiveComputed<boolean>
 }
 
@@ -89,7 +84,9 @@ export interface ButtonNode extends UiNodeBase {
 
 export interface TableNode<TRow> extends UiNodeBase {
 	readonly type: 'table'
-	readonly columns: readonly TableColumn<TRow>[]
+	readonly rowContext: ContextNode<unknown, TRow> | undefined
+	readonly columnContext: ContextNode<unknown, string> | undefined
+	readonly getRowKey: (row: unknown, index: number) => string
 	resolve(ctx?: RenderContext): ResolvedTableNode<TRow>
 }
 
@@ -118,7 +115,10 @@ export interface ButtonOptions {
 
 export interface TableOptions<TRow> {
 	rows: ContextualFn<readonly TRow[]>
-	columns: readonly TableColumn<TRow>[]
+	columns: ContextualFn<readonly string[]>
+	rowKey?: (row: TRow) => string
+	rowContext?: ContextNode<unknown, TRow>
+	columnContext?: ContextNode<unknown, string>
 	isVisible?: ContextualFn<boolean>
 }
 
@@ -130,8 +130,6 @@ export interface RepeatOptions<TItem> {
 }
 
 // Helpers
-
-const UI_NO_CTX = Symbol('ui-no-ctx')
 
 const EMPTY_CONTEXTS = Object.freeze(Object.create(null)) as RenderContexts
 
@@ -183,14 +181,13 @@ export function resolveContextualFn<T>(
 export function createResolveCache<TResolved>(
 	factory: (ctx: RenderContext) => TResolved,
 ): (ctx?: RenderContext) => TResolved {
-	const cache = new Map<RenderContext | typeof UI_NO_CTX, TResolved>()
+	const cache = new WeakMap<RenderContext, TResolved>()
 	return (ctx?: RenderContext): TResolved => {
 		const resolvedCtx = normalizeRenderContext(ctx)
-		const key = ctx ?? UI_NO_CTX
-		const existing = cache.get(key)
+		const existing = cache.get(resolvedCtx)
 		if (existing !== undefined) return existing
 		const resolved = factory(resolvedCtx)
-		cache.set(key, resolved)
+		cache.set(resolvedCtx, resolved)
 		return resolved
 	}
 }

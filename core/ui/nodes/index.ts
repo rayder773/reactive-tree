@@ -17,7 +17,6 @@ export type {
 	ResolvedRepeatNode,
 	ResolvedTableNode,
 	ResolvedTextNode,
-	TableColumn,
 	TableNode,
 	TableOptions,
 	TextNode,

@@ -4,7 +4,6 @@ import type {
 	ContextNode,
 	RenderContexts,
 	RepeatNode,
-	TableColumn,
 	TableNode,
 	TextNode,
 } from '../../index'
@@ -17,7 +16,7 @@ export interface PartListModel {
 	readonly createListButton: ButtonNode
 	readonly listsRepeat: RepeatNode<string>
 	readonly allLoadedTitle: TextNode
-	readonly allLoadedPartsTable: TableNode<Part>
+	readonly allLoadedPartsTable: TableNode<string>
 	readonly partListTitle: TextNode
 	readonly partListStatus: TextNode
 	readonly partListReloadButton: ButtonNode
@@ -25,7 +24,11 @@ export interface PartListModel {
 	readonly partListSortButton: ButtonNode
 	readonly partListFilterButton: ButtonNode
 	readonly partListClearFilterButton: ButtonNode
-	readonly partListTable: TableNode<Part>
+	readonly partListTable: TableNode<string>
+	readonly partCellId: TextNode
+	readonly partCellName: TextNode
+	readonly partCellManufacturer: TextNode
+	readonly partCellPrice: TextNode
 	dispose(): void
 }
 
@@ -143,6 +146,25 @@ export function createPartListModel(
 		},
 	)
 
+	const partRowContext = ui.context<PartRowContext, string>(
+		'partRow',
+		({ item: entityId }) => ({
+			get id() {
+				return entityId
+			},
+			get name() {
+				return environment.parts.get(entityId)?.name ?? ''
+			},
+			get manufacturer() {
+				return environment.parts.get(entityId)?.manufacturer ?? ''
+			},
+			get price() {
+				const price = environment.parts.get(entityId)?.price
+				return price !== undefined ? `$${price}` : ''
+			},
+		}),
+	)
+
 	const createListButton = ui.button('create-list', {
 		text: () => 'Create part list',
 		onClick: ({ contexts }) => getPartsContext(contexts).createList(),
@@ -160,8 +182,11 @@ export function createPartListModel(
 	})
 
 	const allLoadedPartsTable = ui.table('all-loaded-table', {
-		rows: ({ contexts }) => getPartsContext(contexts).allLoadedParts,
+		rows: ({ contexts }) =>
+			getPartsContext(contexts).allLoadedParts.map((p) => p.id),
 		columns: partColumns,
+		rowContext: partRowContext,
+		rowKey: (id) => id,
 	})
 
 	const partListTitle = ui.text('part-list:title', {
@@ -206,8 +231,26 @@ export function createPartListModel(
 	})
 
 	const partListTable = ui.table('part-list:table', {
-		rows: ({ contexts }) => getPartListContext(contexts).rows,
+		rows: ({ contexts }) => getPartListContext(contexts).rows.map((p) => p.id),
 		columns: partColumns,
+		rowContext: partRowContext,
+		rowKey: (id) => id,
+	})
+
+	const partCellId = ui.text('part-cell:id', {
+		value: ({ contexts }) => getPartRowContext(contexts).id,
+	})
+
+	const partCellName = ui.text('part-cell:name', {
+		value: ({ contexts }) => getPartRowContext(contexts).name,
+	})
+
+	const partCellManufacturer = ui.text('part-cell:manufacturer', {
+		value: ({ contexts }) => getPartRowContext(contexts).manufacturer,
+	})
+
+	const partCellPrice = ui.text('part-cell:price', {
+		value: ({ contexts }) => getPartRowContext(contexts).price,
 	})
 
 	return {
@@ -224,6 +267,10 @@ export function createPartListModel(
 		partListFilterButton,
 		partListClearFilterButton,
 		partListTable,
+		partCellId,
+		partCellName,
+		partCellManufacturer,
+		partCellPrice,
 		dispose() {},
 	}
 }
@@ -249,12 +296,23 @@ interface PartListContext {
 	clearFilters(): Promise<void>
 }
 
+interface PartRowContext {
+	readonly id: string
+	readonly name: string
+	readonly manufacturer: string
+	readonly price: string
+}
+
 function getPartsContext(contexts: RenderContexts): PartsContext {
 	return contexts.parts as PartsContext
 }
 
 function getPartListContext(contexts: RenderContexts): PartListContext {
 	return contexts.partList as PartListContext
+}
+
+function getPartRowContext(contexts: RenderContexts): PartRowContext {
+	return contexts.partRow as PartRowContext
 }
 
 function getNextListKey(keys: readonly string[]): string {
@@ -268,28 +326,7 @@ function getNextListKey(keys: readonly string[]): string {
 	return `parts:list:${nextNumber}`
 }
 
-const partColumns: readonly TableColumn<Part>[] = [
-	{
-		id: 'id',
-		header: 'ID',
-		getValue: (part) => part.id,
-	},
-	{
-		id: 'name',
-		header: 'Name',
-		getValue: (part) => part.name,
-	},
-	{
-		id: 'manufacturer',
-		header: 'Manufacturer',
-		getValue: (part) => part.manufacturer,
-	},
-	{
-		id: 'price',
-		header: 'Price',
-		getValue: (part) => `$${part.price}`,
-	},
-] as readonly TableColumn<Part>[]
+const partColumns = ['id', 'name', 'manufacturer', 'price'] as const
 
 function formatFilters(filters: PartFilters): string {
 	const entries = Object.entries(filters)

@@ -7,6 +7,7 @@ import {
 	AppTable,
 	AppText,
 } from '../../core/render-adapters/vue'
+import type { TextNode } from '../../index'
 import type { PartListModel } from './renderModel'
 
 export default defineComponent({
@@ -23,6 +24,23 @@ export default defineComponent({
 			type: Object as PropType<PartListModel>,
 			required: true,
 		},
+	},
+	setup(props) {
+		const columnLabels: Record<string, string> = {
+			id: 'ID',
+			name: 'Name',
+			manufacturer: 'Manufacturer',
+			price: 'Price',
+		}
+
+		const cellNodes: Record<string, TextNode> = {
+			id: props.model.partCellId,
+			name: props.model.partCellName,
+			manufacturer: props.model.partCellManufacturer,
+			price: props.model.partCellPrice,
+		}
+
+		return { columnLabels, cellNodes }
 	},
 })
 </script>
@@ -60,8 +78,22 @@ export default defineComponent({
 
 							<AppTable
 								:node="model.partListTable"
-								class="parts-table"
-							/>
+								style="--app-table-columns: 100px 1fr 1fr 80px"
+							>
+								<template #header="{ column }">
+									<div class="app-table__th">{{ columnLabels[column] }}</div>
+								</template>
+								<template #row="{ cells }">
+									<div class="app-table__tr">
+										<component :is="cells" />
+									</div>
+								</template>
+								<template #cell="{ column }">
+									<div class="app-table__td">
+										<AppText :node="cellNodes[column]" />
+									</div>
+								</template>
+							</AppTable>
 						</article>
 					</template>
 				</AppRepeat>
@@ -73,8 +105,22 @@ export default defineComponent({
 				</h3>
 				<AppTable
 					:node="model.allLoadedPartsTable"
-					class="parts-table"
-				/>
+					style="--app-table-columns: 100px 1fr 1fr 80px"
+				>
+					<template #header="{ column }">
+						<div class="app-table__th">{{ columnLabels[column] }}</div>
+					</template>
+					<template #row="{ cells }">
+						<div class="app-table__tr">
+							<component :is="cells" />
+						</div>
+					</template>
+					<template #cell="{ column }">
+						<div class="app-table__td">
+							<AppText :node="cellNodes[column]" />
+						</div>
+					</template>
+				</AppTable>
 			</section>
 		</div>
 	</AppContext>
