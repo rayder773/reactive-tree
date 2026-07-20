@@ -1,7 +1,7 @@
-import { data, defaultDataAdapter, readonlyData, type DataAdapter } from '../../../core'
+import { data, readonlyData } from '../../../core'
 
-export function createCounterController(dataAdapter: DataAdapter = defaultDataAdapter) {
-  const count = data(0, dataAdapter)
+export function createCounterController() {
+  const count = data(0)
   return {
     count: readonlyData(count),
     increment: () => count.update((value) => value + 1),

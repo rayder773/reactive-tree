@@ -3,6 +3,7 @@ export type Unsubscribe = () => void
 export type DataSubscriber<T> = (value: T, previousValue: T) => void
 
 export interface ReadonlyData<T> {
+  readonly value: T
   get(): T
   subscribe(subscriber: DataSubscriber<T>): Unsubscribe
 }

@@ -3,8 +3,6 @@ import {
   FilteringService,
   PaginationService,
   SortingService,
-  defaultDataAdapter,
-  type DataAdapter,
 } from '../../../core'
 import type { Part, PartFilters, PartSortField } from './parts.types'
 
@@ -23,22 +21,21 @@ const compare = (left: Part, right: Part, field: PartSortField): number => {
   return typeof a === 'string' && typeof b === 'string' ? a.localeCompare(b) : Number(a) - Number(b)
 }
 
-export function createPartsDomain(dataAdapter: DataAdapter = defaultDataAdapter) {
+export function createPartsDomain() {
   const entities = new EntityService<Part, number, PartSortField, PartFilters>({
     getId: (part) => part.id,
-    dataAdapter,
     lists: {
       source: 'entities',
       query: false,
       sorting: {
         mode: 'client',
-        factory: (adapter) => new SortingService({ field: 'name', direction: 'asc' }, adapter),
+        factory: () => new SortingService({ field: 'name', direction: 'asc' }),
         comparator: compare,
       },
       filtering: false,
       pagination: {
         mode: 'client',
-        factory: (adapter) => new PaginationService({ pageSize: 3 }, adapter),
+        factory: () => new PaginationService({ pageSize: 3 }),
       },
     },
   })
@@ -48,12 +45,12 @@ export function createPartsDomain(dataAdapter: DataAdapter = defaultDataAdapter)
   const northwindParts = entities.createList('northwind-parts', {
     sorting: {
       mode: 'client',
-      factory: (adapter) => new SortingService({ field: 'price', direction: 'asc' }, adapter),
+      factory: () => new SortingService({ field: 'price', direction: 'asc' }),
       comparator: compare,
     },
     filtering: {
       mode: 'client',
-      factory: (adapter) => new FilteringService<PartFilters>({ manufacturer: 'Northwind' }, adapter),
+      factory: () => new FilteringService<PartFilters>({ manufacturer: 'Northwind' }),
       predicate: (part, filters) => !filters.manufacturer || part.manufacturer === filters.manufacturer,
     },
     pagination: false,

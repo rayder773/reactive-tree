@@ -1,5 +1,9 @@
-import { shallowRef, type ShallowRef } from 'vue'
+import { shallowRef, type Ref, type ShallowRef } from 'vue'
 import type { Data, DataAdapter, DataSubscriber } from '../../core'
+
+declare module '../../core/data/data.types' {
+  interface ReadonlyData<T> extends Ref<T> {}
+}
 
 export const vueDataAdapter: DataAdapter = {
   create<T>(initialValue: T): Data<T> {
@@ -16,7 +20,7 @@ export const vueDataAdapter: DataAdapter = {
       }
     }
 
-    return {
+    return Object.assign(value, {
       get: () => value.value,
       set,
       update: (updater) => set(updater(value.value)),
@@ -29,6 +33,6 @@ export const vueDataAdapter: DataAdapter = {
           subscribers.delete(subscriber)
         }
       },
-    }
+    }) as Data<T>
   },
 }

@@ -1,4 +1,4 @@
-import { data, defaultDataAdapter, readonlyData, type Data, type DataAdapter, type ReadonlyData } from '../data'
+import { data, readonlyData, type Data, type ReadonlyData } from '../data'
 import type { AbortService, LoadingService } from '../services'
 import { EntityList } from './entity-list'
 import type { EntityListOptions, EntityListOverrides, EntityServiceOptions } from './entity.types'
@@ -22,7 +22,6 @@ const batchRequestKey = Symbol('entity:batch')
 
 export class EntityService<TEntity, TId, TField = never, TFilters extends object = Record<string, never>> {
   readonly #options: EntityServiceOptions<TEntity, TId, TField, TFilters>
-  readonly #dataAdapter: DataAdapter
   readonly #entities: Data<ReadonlyMap<TId, TEntity>>
   readonly entities: ReadonlyData<ReadonlyMap<TId, TEntity>>
   readonly #listKeys: Data<readonly string[]>
@@ -35,12 +34,11 @@ export class EntityService<TEntity, TId, TField = never, TFilters extends object
 
   constructor(options: EntityServiceOptions<TEntity, TId, TField, TFilters>) {
     this.#options = options
-    this.#dataAdapter = options.dataAdapter ?? defaultDataAdapter
-    this.#entities = data<ReadonlyMap<TId, TEntity>>(new Map(), this.#dataAdapter)
+    this.#entities = data<ReadonlyMap<TId, TEntity>>(new Map())
     this.entities = readonlyData(this.#entities)
-    this.#listKeys = data<readonly string[]>([], this.#dataAdapter)
+    this.#listKeys = data<readonly string[]>([])
     this.listKeys = readonlyData(this.#listKeys)
-    this.#loading = options.loading ? options.loading(this.#dataAdapter) : undefined
+    this.#loading = options.loading ? options.loading() : undefined
     this.#abort = options.abort ? options.abort() : undefined
   }
 
@@ -136,7 +134,6 @@ export class EntityService<TEntity, TId, TField = never, TFilters extends object
     if (!effective.source) throw new EntityConfigurationError(`Entity list "${id}" requires a source`)
     const list = new EntityList(id, effective, {
       entities: this.entities,
-      dataAdapter: this.#dataAdapter,
       getId: this.#options.getId,
       upsertMany: (items) => this.upsertMany(items),
     })

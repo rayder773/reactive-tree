@@ -1,5 +1,6 @@
 import { createApp, type App as VueApp } from 'vue'
 import { vueDataAdapter } from '../../../adapters/vue'
+import { setDataAdapter } from '../../../core'
 import type { MountedApplication } from '../../host/app-contract'
 import App from './App.vue'
 import { createCounterController } from './domain'
@@ -9,7 +10,8 @@ export function createApplication(): MountedApplication {
   return {
     mount({ container }) {
       if (app) return
-      const controller = createCounterController(vueDataAdapter)
+      setDataAdapter(vueDataAdapter)
+      const controller = createCounterController()
       app = createApp(App, { controller })
       app.mount(container)
     },

@@ -1,4 +1,4 @@
-import { data, defaultDataAdapter, readonlyData, type Data, type DataAdapter, type ReadonlyData } from '../data'
+import { data, readonlyData, type Data, type ReadonlyData } from '../data'
 
 export type SortDirection = 'asc' | 'desc'
 export interface SortingState<TField> { field: TField; direction: SortDirection }
@@ -8,9 +8,9 @@ export class SortingService<TField> {
   readonly #state: Data<SortingState<TField>>
   readonly state: ReadonlyData<SortingState<TField>>
 
-  constructor(initial: SortingState<TField>, dataAdapter: DataAdapter = defaultDataAdapter) {
+  constructor(initial: SortingState<TField>) {
     this.#initial = { ...initial }
-    this.#state = data({ ...initial }, dataAdapter)
+    this.#state = data({ ...initial })
     this.state = readonlyData(this.#state)
   }
 

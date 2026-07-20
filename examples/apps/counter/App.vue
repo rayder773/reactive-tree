@@ -7,7 +7,7 @@ const count = props.controller.count
 
 <template>
   <section class="counter-card">
-    <div class="counter-value">{{ count.get() }}</div>
+    <div class="counter-value">{{ count }}</div>
     <div class="counter-actions">
       <button type="button" @click="controller.decrement">−</button>
       <button type="button" @click="controller.reset">Reset</button>

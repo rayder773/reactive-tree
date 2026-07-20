@@ -14,6 +14,7 @@ function createData<T>(initialValue: T): Data<T> {
   }
 
   return {
+    get value() { return value },
     get: () => value,
     set,
     update(updater) {
@@ -28,20 +29,37 @@ function createData<T>(initialValue: T): Data<T> {
         subscribers.delete(subscriber)
       }
     },
-  }
+  } as Data<T>
 }
 
 export const defaultDataAdapter: DataAdapter = {
   create: createData,
 }
 
-export function data<T>(initialValue: T, adapter: DataAdapter = defaultDataAdapter): Data<T> {
-  return adapter.create(initialValue)
+let dataAdapter: DataAdapter = defaultDataAdapter
+
+export function setDataAdapter(adapter: DataAdapter): void {
+  dataAdapter = adapter
+}
+
+export function getDataAdapter(): DataAdapter {
+  return dataAdapter
+}
+
+export function data<T>(initialValue: T): Data<T> {
+  return dataAdapter.create(initialValue)
 }
 
 export function readonlyData<T>(source: Data<T>): ReadonlyData<T> {
-  return {
+  const view = {
+    get value() { return source.value },
     get: () => source.get(),
     subscribe: (subscriber) => source.subscribe(subscriber),
+  } as ReadonlyData<T> & { __v_isRef?: true }
+
+  if ((source as Data<T> & { __v_isRef?: boolean }).__v_isRef === true) {
+    Object.defineProperty(view, '__v_isRef', { value: true })
   }
+
+  return view
 }

@@ -1,4 +1,4 @@
-import type { DataAdapter, ReadonlyData } from '../data'
+import type { ReadonlyData } from '../data'
 import type {
   AbortService,
   FilteringService,
@@ -30,25 +30,25 @@ export type ListQuery<TEntity, TField, TFilters> = (
 
 export interface SortingCapability<TEntity, TField> {
   mode: ProcessingMode
-  factory: (dataAdapter: DataAdapter) => SortingService<TField>
+  factory: () => SortingService<TField>
   comparator?: (left: TEntity, right: TEntity, field: TField) => number
 }
 
 export interface FilteringCapability<TEntity, TFilters extends object> {
   mode: ProcessingMode
-  factory: (dataAdapter: DataAdapter) => FilteringService<TFilters>
+  factory: () => FilteringService<TFilters>
   predicate?: (entity: TEntity, filters: TFilters) => boolean
 }
 
 export interface PaginationCapability {
   mode: ProcessingMode
-  factory: (dataAdapter: DataAdapter) => PaginationService
+  factory: () => PaginationService
 }
 
 export interface EntityListOptions<TEntity, TField, TFilters extends object> {
   source: ListSource
   query?: ListQuery<TEntity, TField, TFilters> | false
-  loading?: ((dataAdapter: DataAdapter) => LoadingService<string>) | false
+  loading?: (() => LoadingService<string>) | false
   abort?: (() => AbortService<string>) | false
   sorting?: SortingCapability<TEntity, TField> | false
   filtering?: FilteringCapability<TEntity, TFilters> | false
@@ -61,10 +61,9 @@ export type EntityListOverrides<TEntity, TField, TFilters extends object> = Part
 
 export interface EntityServiceOptions<TEntity, TId, TField = never, TFilters extends object = Record<string, never>> {
   getId(entity: TEntity): TId
-  dataAdapter?: DataAdapter
   queryById?: (id: TId, signal: AbortSignal) => Promise<TEntity | undefined>
   queryByIds?: (ids: readonly TId[], signal: AbortSignal) => Promise<readonly TEntity[]>
-  loading?: ((dataAdapter: DataAdapter) => LoadingService<TId>) | false
+  loading?: (() => LoadingService<TId>) | false
   abort?: (() => AbortService<unknown>) | false
   lists?: EntityListOptions<TEntity, TField, TFilters>
 }

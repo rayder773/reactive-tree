@@ -1,4 +1,4 @@
-import { data, defaultDataAdapter, readonlyData, type Data, type DataAdapter, type ReadonlyData } from '../data'
+import { data, readonlyData, type Data, type ReadonlyData } from '../data'
 
 export interface LoadingState {
   status: 'idle' | 'loading' | 'error'
@@ -8,20 +8,15 @@ export interface LoadingState {
 const idle = (): LoadingState => ({ status: 'idle', error: null })
 
 export class LoadingService<TKey> {
-  readonly #dataAdapter: DataAdapter
   readonly #states = new Map<TKey, Data<LoadingState>>()
   readonly #views = new Map<TKey, ReadonlyData<LoadingState>>()
   readonly #generations = new Map<TKey, number>()
   #disposed = false
 
-  constructor(dataAdapter: DataAdapter = defaultDataAdapter) {
-    this.#dataAdapter = dataAdapter
-  }
-
   state(key: TKey): ReadonlyData<LoadingState> {
     let state = this.#states.get(key)
     if (!state) {
-      state = data(idle(), this.#dataAdapter)
+      state = data(idle())
       this.#states.set(key, state)
       this.#views.set(key, readonlyData(state))
     }

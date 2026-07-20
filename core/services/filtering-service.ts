@@ -1,13 +1,13 @@
-import { data, defaultDataAdapter, readonlyData, type Data, type DataAdapter, type ReadonlyData } from '../data'
+import { data, readonlyData, type Data, type ReadonlyData } from '../data'
 
 export class FilteringService<TFilters extends object> {
   readonly #initial: TFilters
   readonly #state: Data<TFilters>
   readonly state: ReadonlyData<TFilters>
 
-  constructor(initial: TFilters, dataAdapter: DataAdapter = defaultDataAdapter) {
+  constructor(initial: TFilters) {
     this.#initial = { ...initial }
-    this.#state = data({ ...initial }, dataAdapter)
+    this.#state = data({ ...initial })
     this.state = readonlyData(this.#state)
   }
 

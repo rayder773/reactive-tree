@@ -51,15 +51,17 @@ const users = new EntityService({
 })
 ```
 
-Choose the state implementation once when the domain is initialized:
+Choose the state implementation once at the application boundary:
 
 ```ts
 import { vueDataAdapter } from './adapters/vue'
+import { setDataAdapter } from 'reactive-tree'
 
-const users = new EntityService({
-  dataAdapter: vueDataAdapter,
-  getId: (user: { id: number }) => user.id,
-})
+setDataAdapter(vueDataAdapter)
+
+const users = new EntityService({ getId: (user: { id: number }) => user.id })
 ```
 
-The adapter is propagated to entity state, lists, and capability factories. Vue components can therefore read `users.entities.get()` directly; the call participates in Vue dependency tracking without wrapping each value in `useData`.
+All new state uses the configured adapter directly; services and capability factories do not receive or store it.
+
+The Vue adapter creates ref-compatible data, so top-level bindings are automatically unwrapped in templates. A binding such as `const entities = users.entities` can be rendered as `entities.size`; arrays can be used directly in `v-for`. The framework-level `get()` API remains available in domain code and outside Vue templates.

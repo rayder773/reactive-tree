@@ -1,6 +1,5 @@
 import {
 	type Data,
-	type DataAdapter,
 	data,
 	type ReadonlyData,
 	readonlyData,
@@ -24,7 +23,6 @@ import type {
 
 interface ListContext<TEntity, TId> {
 	entities: ReadonlyData<ReadonlyMap<TId, TEntity>>
-	dataAdapter: DataAdapter
 	getId(entity: TEntity): TId
 	upsertMany(items: readonly TEntity[]): readonly TEntity[]
 }
@@ -57,24 +55,24 @@ export class EntityList<TEntity, TId, TField, TFilters extends object> {
 	) {
 		this.#options = options
 		this.#context = context
-		this.#membership = data<readonly TId[]>([], context.dataAdapter)
-		this.#ids = data<readonly TId[]>([], context.dataAdapter)
+		this.#membership = data<readonly TId[]>([])
+		this.#ids = data<readonly TId[]>([])
 		this.ids = readonlyData(this.#ids)
-		this.#items = data<readonly TEntity[]>([], context.dataAdapter)
+		this.#items = data<readonly TEntity[]>([])
 		this.items = readonlyData(this.#items)
-		this.#loadingService = options.loading ? options.loading(context.dataAdapter) : undefined
+		this.#loadingService = options.loading ? options.loading() : undefined
 		this.loading = this.#loadingService?.state('load')
 		this.#abortService = options.abort ? options.abort() : undefined
 		this.#sortingService = options.sorting
-			? options.sorting.factory(context.dataAdapter)
+			? options.sorting.factory()
 			: undefined
 		this.sorting = this.#sortingService?.state
 		this.#filteringService = options.filtering
-			? options.filtering.factory(context.dataAdapter)
+			? options.filtering.factory()
 			: undefined
 		this.filters = this.#filteringService?.state
 		this.#paginationService = options.pagination
-			? options.pagination.factory(context.dataAdapter)
+			? options.pagination.factory()
 			: undefined
 		this.pagination = this.#paginationService?.state
 
