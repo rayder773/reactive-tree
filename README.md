@@ -92,12 +92,12 @@ Entity commands fully upsert their input. ID-only commands can retain unknown ID
 Queries compose their own services and expose them below `list.query`:
 
 ```ts
-import { query, queryAbort, queryLoading, querySorting } from 'reactive-tree'
+import { query, queryConcurrencyLatest, queryLoading, querySorting } from 'reactive-tree'
 
 const remoteUsers = lists.create('remote-users').use(
   query<User>()
     .use(queryLoading())
-    .use(queryAbort())
+    .use(queryConcurrencyLatest({ cancelPrevious: true }))
     .use(querySorting({ field: 'name' as const, direction: 'asc' }))
     .request(({ sorting, signal }) => repository.query({ sorting: sorting.state.get() }, signal)),
 ).build()
@@ -105,6 +105,19 @@ const remoteUsers = lists.create('remote-users').use(
 await remoteUsers.query.replace()
 await remoteUsers.query.append()
 ```
+
+Queries use parallel concurrency by default. The built-in alternatives are
+`queryConcurrencyLatest`, `queryConcurrencyQueue`, and
+`queryConcurrencyExhaust`. Every query exposes its strategy and reactive
+operation IDs through `query.concurrency.activeIds` and `pendingIds`; use
+`cancel(operationId)` or `cancelAll()` for manual cancellation. `replace` and
+`append` resolve to an applied/skipped result carrying the operation ID.
+
+Custom scheduling is installed with `queryConcurrency(() => service)`. A
+service implements `QueryConcurrencyService` and may use RxJS `Subject` plus
+`switchMap`, `mergeMap`, `concatMap`, or `exhaustMap`; RxJS is intentionally
+not a library dependency. Custom services own their `AbortService` and must
+implement cancellation and disposal.
 
 `replace` changes only list membership; normalized entities that are no longer visible remain in the store. Changing query service state does not automatically send a request.
 

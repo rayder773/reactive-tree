@@ -10,7 +10,8 @@ const idle = (): LoadingState => ({ status: 'idle', error: null })
 export class LoadingService<TKey> {
   readonly #states = new Map<TKey, Data<LoadingState>>()
   readonly #views = new Map<TKey, ReadonlyData<LoadingState>>()
-  readonly #generations = new Map<TKey, number>()
+  readonly #counts = new Map<TKey, Data<number>>()
+  readonly #countViews = new Map<TKey, ReadonlyData<number>>()
   #disposed = false
 
   state(key: TKey): ReadonlyData<LoadingState> {
@@ -23,35 +24,43 @@ export class LoadingService<TKey> {
     return this.#views.get(key) as ReadonlyData<LoadingState>
   }
 
-  async run<T>(key: TKey, operation: () => Promise<T>): Promise<T> {
+  activeCount(key: TKey): ReadonlyData<number> {
+    if (!this.#counts.has(key)) {
+      const count = data(0)
+      this.#counts.set(key, count)
+      this.#countViews.set(key, readonlyData(count))
+    }
+    return this.#countViews.get(key) as ReadonlyData<number>
+  }
+
+  async run<T>(key: TKey, operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (this.#disposed) throw new Error('LoadingService has been disposed')
-    const generation = (this.#generations.get(key) ?? 0) + 1
-    this.#generations.set(key, generation)
     this.state(key)
+    this.activeCount(key)
+    const count = (this.#counts.get(key)?.get() ?? 0) + 1
+    this.#counts.get(key)?.set(count)
     this.#states.get(key)?.set({ status: 'loading', error: null })
     try {
-      const result = await operation()
-      if (this.#generations.get(key) === generation) {
-        this.#states.get(key)?.set(idle())
-      }
-      return result
+      return await operation()
     } catch (error) {
-      if (this.#generations.get(key) === generation) {
-        this.#states.get(key)?.set({ status: 'error', error })
-      }
+      if (!signal?.aborted) this.#states.get(key)?.set({ status: 'error', error })
       throw error
+    } finally {
+      const remaining = Math.max(0, (this.#counts.get(key)?.get() ?? 1) - 1)
+      this.#counts.get(key)?.set(remaining)
+      if (remaining === 0 && this.#states.get(key)?.get().status === 'loading') this.#states.get(key)?.set(idle())
     }
   }
 
   reset(key: TKey): void {
-    this.#generations.set(key, (this.#generations.get(key) ?? 0) + 1)
     this.#states.get(key)?.set(idle())
   }
 
   dispose(): void {
     this.#disposed = true
-    this.#generations.clear()
     this.#states.clear()
     this.#views.clear()
+    this.#counts.clear()
+    this.#countViews.clear()
   }
 }

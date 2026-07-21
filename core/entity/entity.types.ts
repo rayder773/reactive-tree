@@ -171,9 +171,18 @@ export type SelectionApi<TEntity, TId, TMode extends 'single' | 'multiple'> = TM
   ? SingleSelectionApi<TEntity, TId>
   : MultipleSelectionApi<TEntity, TId>
 
+export type QueryResult<TEntity> =
+  | { status: 'applied'; operationId: number; entities: readonly TEntity[] }
+  | {
+      status: 'skipped'
+      operationId: number
+      reason: 'superseded' | 'busy' | 'cancelled' | 'disposed'
+      entities?: readonly TEntity[]
+    }
+
 export type QueryCommand<TInput, TEntity> = [TInput] extends [void]
-  ? () => Promise<readonly TEntity[]>
-  : (input: TInput) => Promise<readonly TEntity[]>
+  ? () => Promise<QueryResult<TEntity>>
+  : (input: TInput) => Promise<QueryResult<TEntity>>
 
 export type QueryApi<TEntity, TInput, TServices extends object> = {
   readonly query: TServices & {

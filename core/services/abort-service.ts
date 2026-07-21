@@ -2,16 +2,16 @@ export class AbortService<TKey> {
   readonly #controllers = new Map<TKey, AbortController>()
   #disposed = false
 
-  async run<T>(key: TKey, callback: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  create(key: TKey): AbortController {
     if (this.#disposed) throw new Error('AbortService has been disposed')
-    this.abort(key)
+    if (this.#controllers.has(key)) throw new Error('AbortService key already exists')
     const controller = new AbortController()
     this.#controllers.set(key, controller)
-    try {
-      return await callback(controller.signal)
-    } finally {
-      if (this.#controllers.get(key) === controller) this.#controllers.delete(key)
-    }
+    return controller
+  }
+
+  release(key: TKey): void {
+    this.#controllers.delete(key)
   }
 
   abort(key: TKey): void {
@@ -22,6 +22,14 @@ export class AbortService<TKey> {
   abortAll(): void {
     for (const controller of this.#controllers.values()) controller.abort()
     this.#controllers.clear()
+  }
+
+  has(key: TKey): boolean {
+    return this.#controllers.has(key)
+  }
+
+  keys(): readonly TKey[] {
+    return [...this.#controllers.keys()]
   }
 
   dispose(): void {
