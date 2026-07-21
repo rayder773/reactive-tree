@@ -1,9 +1,4 @@
-import {
-  EntityService,
-  FilteringService,
-  PaginationService,
-  SortingService,
-} from '../../../core'
+import { allEntities, entityLists, entityStore, filtering, identity, sorting } from '../../../core'
 import type { Part, PartFilters, PartSortField } from './parts.types'
 
 const seed: readonly Part[] = [
@@ -21,46 +16,40 @@ const compare = (left: Part, right: Part, field: PartSortField): number => {
   return typeof a === 'string' && typeof b === 'string' ? a.localeCompare(b) : Number(a) - Number(b)
 }
 
+interface ManufacturerArgs { manufacturer: Part['manufacturer'] }
+
 export function createPartsDomain() {
-  const entities = new EntityService<Part, number, PartSortField, PartFilters>({
-    getId: (part) => part.id,
-    lists: {
-      source: 'entities',
-      query: false,
-      sorting: {
-        mode: 'client',
-        factory: () => new SortingService({ field: 'name', direction: 'asc' }),
-        comparator: compare,
-      },
-      filtering: false,
-      pagination: {
-        mode: 'client',
-        factory: () => new PaginationService({ pageSize: 3 }),
-      },
-    },
-  })
+  const entities = entityStore<Part>()
+    .use(identity((part) => part.id))
+    .build()
+  const lists = entityLists(entities).build()
   entities.upsertMany(seed)
 
-  const allParts = entities.createList('all-parts')
-  const northwindParts = entities.createList('northwind-parts', {
-    sorting: {
-      mode: 'client',
-      factory: () => new SortingService({ field: 'price', direction: 'asc' }),
-      comparator: compare,
-    },
-    filtering: {
-      mode: 'client',
-      factory: () => new FilteringService<PartFilters>({ manufacturer: 'Northwind' }),
-      predicate: (part, filters) => !filters.manufacturer || part.manufacturer === filters.manufacturer,
-    },
-    pagination: false,
-  })
+  const allParts = lists
+    .create('all-parts')
+    .use(allEntities())
+    .use(sorting({ initial: { field: 'name', direction: 'asc' }, compare }))
+    .build()
+
+  const manufacturerDefinition = lists.define(
+    (list, args: ManufacturerArgs) => list
+      .use(allEntities())
+      .use(filtering<Part, PartFilters>({
+        initial: { manufacturer: args.manufacturer },
+        predicate: (part, filters) => !filters.manufacturer || part.manufacturer === filters.manufacturer,
+      }))
+      .use(sorting({ initial: { field: 'price', direction: 'asc' }, compare })),
+  )
+  const manufacturerViews = lists.group('manufacturer-views', manufacturerDefinition)
+  manufacturerViews.create('Northwind', { manufacturer: 'Northwind' })
 
   let nextId = Math.max(...seed.map((part) => part.id)) + 1
   return {
     entities,
+    lists,
     allParts,
-    northwindParts,
+    manufacturerViews,
+    manufacturers: ['Northwind', 'Contoso', 'Adventure Works'] as const,
     addPart() {
       const id = nextId++
       entities.upsert({ id, name: `New part ${id}`, manufacturer: 'Northwind', price: 25 + id, stock: 10 })
@@ -70,14 +59,19 @@ export function createPartsDomain() {
     },
     deletePart(id: number) { entities.delete(id) },
     toggleAllSort() {
-      const sorting = allParts.sorting?.get()
-      if (sorting) allParts.setSorting({ field: sorting.field, direction: sorting.direction === 'asc' ? 'desc' : 'asc' })
+      const current = allParts.sorting.state.get()
+      allParts.sorting.setDirection(current.direction === 'asc' ? 'desc' : 'asc')
     },
-    toggleNorthwindFilter() {
-      const filters = northwindParts.filters?.get()
-      northwindParts.patchFilters({ manufacturer: filters?.manufacturer ? null : 'Northwind' })
+    createManufacturerView(manufacturer: Part['manufacturer']) {
+      return manufacturerViews.create(manufacturer, { manufacturer })
     },
-    dispose() { entities.dispose() },
+    deleteManufacturerView(manufacturer: PartFilters['manufacturer']) {
+      return manufacturer ? manufacturerViews.delete(manufacturer) : false
+    },
+    dispose() {
+      lists.dispose()
+      entities.dispose()
+    },
   }
 }
 

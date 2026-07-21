@@ -4,11 +4,9 @@ import type { PartsDomain } from './parts-domain'
 const props = defineProps<{ domain: PartsDomain }>()
 const entities = props.domain.entities.entities
 const allParts = props.domain.allParts.items
-const allSorting = props.domain.allParts.sorting!
-const allPagination = props.domain.allParts.pagination!
-const northwindParts = props.domain.northwindParts.items
-const northwindSorting = props.domain.northwindParts.sorting!
-const northwindFilters = props.domain.northwindParts.filters!
+const allSorting = props.domain.allParts.sorting.state
+const manufacturerKeys = props.domain.manufacturerViews.keys
+const manufacturerViews = props.domain.manufacturerViews.items
 </script>
 
 <template>
@@ -21,13 +19,8 @@ const northwindFilters = props.domain.northwindParts.filters!
     <section class="panel">
       <div class="panel-heading">
         <div><h2>All parts</h2><small>Sorted by {{ allSorting.field }} · {{ allSorting.direction }}</small></div>
-        <div class="actions">
-          <button type="button" @click="domain.toggleAllSort">Toggle sort</button>
-          <button type="button" @click="domain.allParts.setPage(1)">Reset page</button>
-          <button type="button" @click="domain.allParts.loadNextPage">Next page</button>
-        </div>
+        <button type="button" @click="domain.toggleAllSort">Toggle sort</button>
       </div>
-      <p class="page-label">Page {{ allPagination.page }} · {{ allPagination.total }} results</p>
       <table>
         <thead><tr><th>Part</th><th>Manufacturer</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
         <tbody>
@@ -39,15 +32,30 @@ const northwindFilters = props.domain.northwindParts.filters!
       </table>
     </section>
 
-    <section class="panel">
+    <div class="toolbar view-toolbar">
+      <span>Manufacturer views</span>
+      <div class="actions">
+        <button
+          v-for="manufacturer in domain.manufacturers.filter((name) => !manufacturerKeys.includes(name))"
+          :key="manufacturer"
+          type="button"
+          @click="domain.createManufacturerView(manufacturer)"
+        >Add {{ manufacturer }}</button>
+      </div>
+    </div>
+
+    <section v-for="view in manufacturerViews" :key="view.id" class="panel">
       <div class="panel-heading">
-        <div><h2>Northwind view</h2><small>Price {{ northwindSorting.direction }} · filter {{ northwindFilters.manufacturer ?? 'off' }}</small></div>
-        <button type="button" @click="domain.toggleNorthwindFilter">Toggle Northwind filter</button>
+        <div>
+          <h2>{{ view.filtering.state.get().manufacturer }} view</h2>
+          <small>Price {{ view.sorting.state.get().direction }}</small>
+        </div>
+        <button class="danger" type="button" @click="domain.deleteManufacturerView(view.filtering.state.get().manufacturer)">Remove view</button>
       </div>
       <table>
         <thead><tr><th>Part</th><th>Price</th><th>Stock</th></tr></thead>
         <tbody>
-          <tr v-for="part in northwindParts" :key="part.id">
+          <tr v-for="part in view.items.get()" :key="part.id">
             <td>{{ part.name }}</td><td>${{ part.price.toFixed(2) }}</td><td>{{ part.stock }}</td>
           </tr>
         </tbody>
