@@ -76,3 +76,4 @@ export function createPartsDomain() {
 }
 
 export type PartsDomain = ReturnType<typeof createPartsDomain>
+export type ManufacturerView = ReturnType<PartsDomain['manufacturerViews']['items']['get']>[number]

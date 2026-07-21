@@ -6,8 +6,9 @@ A small framework-agnostic reactive core with normalized entity storage, composa
 
 - `core/data` provides synchronous shallow reactive values with explicit readonly facades.
 - `core/entity` provides a synchronous `EntityStore`, a separate `EntityLists` registry, and typed plugins for list membership and transforms.
-- `adapters/vue` provides a Vue-backed `DataAdapter`. The root package entry never imports Vue.
-- `examples/host` is a vanilla TypeScript application shell. Each app is loaded lazily and implements the same mount/unmount contract.
+- `adapters/vue`, `adapters/react`, and `adapters/svelte` connect framework-neutral data to each UI library. The root package entry never imports a UI framework.
+- `examples/apps` contains framework-neutral application domains, while `examples/ui` contains independently loaded Vue, React, and Svelte renderers.
+- `examples/host` is a vanilla TypeScript shell that selects the application and its UI renderer independently.
 
 Objects, arrays, and maps are shallow values: update them by supplying a new value instead of mutating them in place.
 
@@ -117,28 +118,52 @@ Both `EntityLists` and groups expose reactive ordered `keys` and `items`. Deleti
 
 ## Data adapter
 
-Choose the state implementation once at the application boundary:
+Each framework entry chooses the state implementation before the host creates the application domain:
 
 ```ts
 import { vueDataAdapter } from './adapters/vue'
 import { setDataAdapter } from 'reactive-tree'
 
-setDataAdapter(vueDataAdapter)
+export function createRenderer() {
+  setDataAdapter(vueDataAdapter)
+  // Return the framework-specific mount/unmount implementation.
+}
 ```
 
-The Vue adapter creates ref-compatible data, so top-level bindings are automatically unwrapped in templates. The framework-level `get()` API remains available in domain code and outside Vue templates.
+Each UI entry installs its adapter before the host creates the application domain. UI components use the same explicit `.value` API in every framework, while domain logic can use `get()`:
 
-## Register an application
+```tsx
+const entities = domain.entities.entities
+const sorting = domain.allParts.sorting.state
 
-Add metadata and a lazy loader to `examples/host/registry.ts`:
+return <div>{entities.value.size} entities, sorted {sorting.value.direction}</div>
+```
+
+The Vue adapter tracks `.value` through `shallowRef`, the React adapter rerenders `ReactDataRoot` through `useSyncExternalStore`, and the Svelte adapter stores `.value` in `$state.raw`. No per-value framework bindings are needed.
+
+## Register applications and UI libraries
+
+Application registrations create only framework-neutral state:
 
 ```ts
 {
   id: 'my-app',
   title: 'My application',
-  description: 'An independently mounted example.',
-  load: async () => (await import('../apps/my-app/entry')).createApplication(),
+  description: 'A framework-neutral example.',
+  create: createMyDomain,
 }
 ```
 
-The entry module returns an object with `mount({ container })` and idempotent `unmount()` methods. Framework setup belongs inside `mount`, so loading one application does not initialize another.
+Every domain implements `dispose()`. UI libraries are registered separately and lazily map application IDs to renderers:
+
+```ts
+{
+  id: 'react',
+  title: 'React',
+  renderers: {
+    'my-app': async () => (await import('../ui/react/my-app/entry')).createRenderer,
+  },
+}
+```
+
+A renderer factory installs its framework adapter and returns an object with `mount({ container, application })` and idempotent `unmount()`. The host loads and invokes that factory before creating the domain. Switching either the application or UI library disposes the current domain and creates a new one with the selected adapter.

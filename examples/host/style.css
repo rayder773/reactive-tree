@@ -10,7 +10,9 @@ button, input, select { font: inherit; }
 .host-shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 .host-sidebar { padding: 28px 20px; color: white; background: #172033; }
 .brand { margin-bottom: 28px; font-size: 1.15rem; font-weight: 700; }
-.host-sidebar nav { display: grid; gap: 8px; }
+.host-nav { display: grid; gap: 24px; }
+.host-nav-group { display: grid; gap: 8px; }
+.host-nav-label { color: #98a2b3; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .host-sidebar button { padding: 10px 12px; color: #cfd7e8; text-align: left; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .host-sidebar button[aria-current] { color: white; background: #2b3956; }
 .host-main { min-width: 0; padding: 36px; }
@@ -23,6 +25,6 @@ button, input, select { font: inherit; }
 @media (max-width: 700px) {
   .host-shell { grid-template-columns: 1fr; }
   .host-sidebar { padding: 16px; }
-  .host-sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .host-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .host-main { padding: 24px 16px; }
 }

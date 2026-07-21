@@ -7,6 +7,7 @@ export function createCounterController() {
     increment: () => count.update((value) => value + 1),
     decrement: () => count.update((value) => value - 1),
     reset: () => count.set(0),
+    dispose() {},
   }
 }
 

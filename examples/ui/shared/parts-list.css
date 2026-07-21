@@ -1,0 +1,15 @@
+.parts-page { display: grid; gap: 22px; }
+.parts-page .toolbar, .parts-page .panel-heading, .parts-page .actions { display: flex; align-items: center; gap: 10px; }
+.parts-page .toolbar, .parts-page .panel-heading { justify-content: space-between; }
+.parts-page .toolbar { font-weight: 600; }
+.parts-page .view-toolbar { margin-bottom: -10px; }
+.parts-page .panel { overflow-x: auto; padding: 22px; border: 1px solid #e4e7ec; border-radius: 14px; background: white; box-shadow: 0 5px 20px #1720330a; }
+.parts-page h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.parts-page small { color: #667085; }
+.parts-page table { width: 100%; margin-top: 14px; border-collapse: collapse; }
+.parts-page th, .parts-page td { padding: 11px 10px; text-align: left; border-bottom: 1px solid #eaecf0; white-space: nowrap; }
+.parts-page th { color: #667085; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; }
+.parts-page button { padding: 8px 11px; border: 1px solid #d0d5dd; border-radius: 8px; color: #344054; background: white; cursor: pointer; }
+.parts-page .toolbar button { color: white; border-color: #3659a2; background: #3659a2; }
+.parts-page .danger { color: #b42318; }
+@media (max-width: 800px) { .parts-page .toolbar, .parts-page .panel-heading { align-items: flex-start; flex-direction: column; } }
