@@ -51,7 +51,7 @@ Lists have a separate owner and share entity object references with their store:
 ```ts
 import { allEntities, entityLists, filtering, sorting } from 'reactive-tree'
 
-const lists = entityLists(users).build()
+const lists = entityLists(users)
 
 const platformUsers = lists
   .create('platform-users')
@@ -70,51 +70,68 @@ platformUsers.sorting.setDirection('desc')
 platformUsers.filtering.patch({ team: 'design' })
 ```
 
-Every list must install exactly one membership plugin: `allEntities()` observes all store entities, while `selection()` owns an ordered set of IDs and adds `list.selection`. Filtering always runs before sorting, followed by custom final transforms, regardless of `.use()` order. Plugins in the same phase retain installation order. Each plugin exposes its API at a named facade key and duplicate keys are rejected.
+Every list installs exactly one source plugin. `allEntities()` follows the complete entity store, `manual()` owns an explicitly managed sequence, and `query()` fills the list from asynchronous requests. Client transforms run in `.use()` order, so the core does not know which services exist. Each plugin exposes its API at a named facade key and duplicate keys are rejected.
 
 Plugins may only be added to builders. Calling `.build()` freezes composition and creates list-local plugin state.
 
-### Selection lists
+### Manual and queried lists
 
 ```ts
-import { selection } from 'reactive-tree'
+import { manual } from 'reactive-tree'
 
-const favorites = lists.create('favorites').use(selection()).build()
+const favorites = lists.create('favorites').use(manual()).build()
 
-favorites.selection.append([{ id: 1, name: 'Ada', team: 'platform' }])
-favorites.selection.prependIds([3, 2])
-favorites.selection.update([{ id: 1, name: 'Updated', team: 'platform' }])
-favorites.selection.remove(2)
+favorites.manual.append([{ id: 1, name: 'Ada', team: 'platform' }])
+favorites.manual.prependIds([3, 2])
+favorites.manual.update([{ id: 1, name: 'Updated', team: 'platform' }])
+favorites.manual.remove(2)
 ```
 
 Entity commands fully upsert their input. ID-only commands can retain unknown IDs; those IDs appear in `items` once their entities enter the store. IDs are deduplicated, and append/prepend do not move IDs already present.
 
-## Definitions and dynamic groups
+Queries compose their own services and expose them below `list.query`:
 
-A definition runs its factory for each group entry, producing fresh plugin instances and independent state:
+```ts
+import { query, queryAbort, queryLoading, querySorting } from 'reactive-tree'
+
+const remoteUsers = lists.create('remote-users').use(
+  query<User>()
+    .use(queryLoading())
+    .use(queryAbort())
+    .use(querySorting({ field: 'name' as const, direction: 'asc' }))
+    .request(({ sorting, signal }) => repository.query({ sorting: sorting.state.get() }, signal)),
+).build()
+
+await remoteUsers.query.replace()
+await remoteUsers.query.append()
+```
+
+`replace` changes only list membership; normalized entities that are no longer visible remain in the store. Changing query service state does not automatically send a request.
+
+The repository helpers under `core/services/repository` provide typed real/mock selection and composable scenarios. Copy `.default.env` to the ignored `.env` for local overrides; `VITE_MOCK`, `VITE_SCENARIO`, and a repository-specific `VITE_*_SCENARIO` select the implementation and scenario.
+
+## Typed copies and row selection
+
+`copies()` recreates every plugin for each entry. Argument-dependent plugins use a factory, so reset values also belong to that copy:
 
 ```ts
 interface TeamArgs { team: string }
 
-const teamDefinition = lists.define<TeamArgs>(
-  (list, args: TeamArgs) => list
-    .use(allEntities())
-    .use(filtering({
-      initial: { team: args.team },
-      predicate: (user, filters) => user.team === filters.team,
-    }))
-    .use(sorting({
-      initial: { field: 'name' as const, direction: 'asc' },
-      compare: (left, right) => left.name.localeCompare(right.name),
-    })),
-)
+const platform = lists.create<TeamArgs>('platform')
+  .use(allEntities())
+  .use((args) => filtering({
+    initial: { team: args.team },
+    predicate: (user, filters) => user.team === filters.team,
+  }))
+  .use(copies())
+  .build({ team: 'platform' })
 
-const teamViews = lists.group('teams', teamDefinition)
-teamViews.create('platform', { team: 'platform' })
-teamViews.create('design', { team: 'design' })
+const design = platform.copies.create('design', { team: 'design' })
 ```
 
-Both `EntityLists` and groups expose reactive ordered `keys` and `items`. Deleting an entry disposes that list. `lists.dispose()` disposes all ordinary lists and groups but intentionally leaves `users` alive; application teardown should dispose lists first and then the store.
+Row selection is independent from the list source. `selection({ mode: 'single' })` exposes radio-style `id/item`; multiple mode exposes `ids/items`, `toggle`, and `selectAll`. Both modes provide `selectFirst`, `clear`, `keepVisible`, and `isSelected`. Requests preserve selection unless the application explicitly changes it.
+
+Deleting a root list disposes its copies. `lists.dispose()` disposes all lists but intentionally leaves `users` alive; application teardown should dispose lists first and then the store.
 
 ## Data adapter
 
@@ -134,7 +151,7 @@ Each UI entry installs its adapter before the host creates the application domai
 
 ```tsx
 const entities = domain.entities.entities
-const sorting = domain.allParts.sorting.state
+const sorting = domain.allParts.query.sorting.state
 
 return <div>{entities.value.size} entities, sorted {sorting.value.direction}</div>
 ```

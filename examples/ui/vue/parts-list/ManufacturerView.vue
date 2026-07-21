@@ -3,8 +3,8 @@ import type { ManufacturerView, PartsDomain } from '../../../apps/parts-list/par
 
 const props = defineProps<{ domain: PartsDomain; view: ManufacturerView }>()
 const items = props.view.items
-const filtering = props.view.filtering.state
-const sorting = props.view.sorting.state
+const filtering = props.view.query.filtering.state
+const sorting = props.view.query.sorting.state
 </script>
 
 <template>
@@ -14,7 +14,7 @@ const sorting = props.view.sorting.state
         <h2>{{ filtering.value.manufacturer }} view</h2>
         <small>Price {{ sorting.value.direction }}</small>
       </div>
-      <button class="danger" type="button" @click="domain.deleteManufacturerView(filtering.value.manufacturer)">Remove view</button>
+      <button v-if="filtering.value.manufacturer !== 'Northwind'" class="danger" type="button" @click="domain.deleteManufacturerView(filtering.value.manufacturer)">Remove view</button>
     </div>
     <table>
       <thead><tr><th>Part</th><th>Price</th><th>Stock</th></tr></thead>

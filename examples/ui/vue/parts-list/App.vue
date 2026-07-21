@@ -5,7 +5,8 @@ import ManufacturerView from './ManufacturerView.vue'
 const props = defineProps<{ domain: PartsDomain }>()
 const entities = props.domain.entities.entities
 const allParts = props.domain.allParts.items
-const allSorting = props.domain.allParts.sorting.state
+const allSorting = props.domain.allParts.query.sorting.state
+const allLoading = props.domain.allParts.query.loading.state
 const manufacturerKeys = props.domain.manufacturerViews.keys
 const manufacturerViews = props.domain.manufacturerViews.items
 </script>
@@ -14,7 +15,7 @@ const manufacturerViews = props.domain.manufacturerViews.items
   <div class="parts-page">
     <div class="toolbar">
       <span>{{ entities.value.size }} normalized entities</span>
-      <button type="button" @click="domain.addPart">Add Northwind part</button>
+      <span>{{ allLoading.value.status }}</span>
     </div>
 
     <section class="panel">
@@ -37,13 +38,15 @@ const manufacturerViews = props.domain.manufacturerViews.items
       <span>Manufacturer views</span>
       <div class="actions">
         <button
-          v-for="manufacturer in domain.manufacturers.filter((name) => !manufacturerKeys.value.includes(name))"
+          v-for="manufacturer in domain.manufacturers.filter((name) => name !== 'Northwind' && !manufacturerKeys.value.includes(name))"
           :key="manufacturer"
           type="button"
           @click="domain.createManufacturerView(manufacturer)"
         >Add {{ manufacturer }}</button>
       </div>
     </div>
+
+    <ManufacturerView :domain="domain" :view="domain.northwindView" />
 
     <ManufacturerView
       v-for="view in manufacturerViews.value"

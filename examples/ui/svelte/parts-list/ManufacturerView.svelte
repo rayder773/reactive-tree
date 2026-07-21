@@ -3,8 +3,8 @@
 
   let { domain, view }: { domain: PartsDomain; view: ManufacturerViewModel } = $props()
   const items = view.items
-  const filtering = view.filtering.state
-  const sorting = view.sorting.state
+  const filtering = view.query.filtering.state
+  const sorting = view.query.sorting.state
 </script>
 
 <section class="panel">
@@ -13,11 +13,13 @@
       <h2>{filtering.value.manufacturer} view</h2>
       <small>Price {sorting.value.direction}</small>
     </div>
-    <button
-      class="danger"
-      type="button"
-      onclick={() => domain.deleteManufacturerView(filtering.value.manufacturer)}
-    >Remove view</button>
+    {#if filtering.value.manufacturer !== 'Northwind'}
+      <button
+        class="danger"
+        type="button"
+        onclick={() => domain.deleteManufacturerView(filtering.value.manufacturer)}
+      >Remove view</button>
+    {/if}
   </div>
   <table>
     <thead><tr><th>Part</th><th>Price</th><th>Stock</th></tr></thead>

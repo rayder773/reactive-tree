@@ -1,20 +1,24 @@
 import {
   allEntities,
+  copies,
   data,
   entityLists,
   entityStore,
   filtering,
   identity,
+  manual,
+  query,
+  queryLoading,
   readonlyData,
   selection,
   sorting,
-  type EntityListPlugin,
   type EntityListsPlugin,
+  type UniversalEntityListPlugin,
 } from '../core'
 
 interface Row { id: number; name: string; group: string; score: number }
-type Field = 'name' | 'score'
 interface Filters { group: string | null }
+type Field = 'name' | 'score'
 const row = (id: number, group = 'a'): Row => ({ id, name: `row-${id}`, group, score: id })
 const compare = (left: Row, right: Row, field: Field) => field === 'name'
   ? left.name.localeCompare(right.name)
@@ -22,12 +26,11 @@ const compare = (left: Row, right: Row, field: Field) => field === 'name'
 
 const setup = () => {
   const store = entityStore<Row>().use(identity((item) => item.id)).build()
-  const lists = entityLists(store).build()
-  return { store, lists }
+  return { store, lists: entityLists(store) }
 }
 
 describe('entity lists', () => {
-  it('keeps all-entity lists reactive with shared entity references', () => {
+  it('creates the registry immediately and keeps allEntities reactive', () => {
     const { store, lists } = setup()
     const list = lists.create('all').use(allEntities()).build()
     store.upsertMany([row(1), row(2)])
@@ -35,160 +38,133 @@ describe('entity lists', () => {
     const replacement = { ...row(1), name: 'replacement' }
     store.upsert(replacement)
     expect(list.items.get()[0]).toBe(replacement)
-    expect(list.items.get()[0]).toBe(store.get(1))
+    expect(lists.keys.get()).toEqual(['all'])
   })
 
-  it('isolates filtering and sorting state for every list', () => {
+  it('supports explicit manual replace, append, prepend and id membership', () => {
     const { store, lists } = setup()
-    store.upsertMany([row(1), row(2, 'b'), row(3)])
-    const create = (name: string) => lists.create(name)
-      .use(allEntities())
-      .use(sorting({ initial: { field: 'score' as const, direction: 'desc' as const }, compare }))
-      .use(filtering<Row, Filters>({ initial: { group: 'a' }, predicate: (item, filters) => !filters.group || item.group === filters.group }))
-      .build()
-    const first = create('first')
-    const second = create('second')
-    expect(first.ids.get()).toEqual([3, 1])
-    first.filtering.patch({ group: null })
-    first.sorting.setDirection('asc')
-    expect(first.ids.get()).toEqual([1, 2, 3])
-    expect(second.ids.get()).toEqual([3, 1])
-    expect(second.filtering.state.get()).toEqual({ group: 'a' })
-  })
-
-  it('uses fixed phases regardless of installation order and preserves order within a phase', () => {
-    const { store, lists } = setup()
-    store.upsertMany([row(1), row(2), row(3)])
-    const keepTwo: EntityListPlugin<Row, number, { cutoff: { state: ReturnType<typeof readonlyData<number>> } }> = {
-      membership: false,
-      install(context) {
-        const state = data(2)
-        context.watch(state)
-        context.addTransform('filtering', (items) => items.filter((item) => item.id <= state.get()))
-        return { cutoff: { state: readonlyData(state) } }
-      },
-    }
-    const reverseFinal: EntityListPlugin<Row, number, Record<never, never>> = {
-      membership: false,
-      install(context) {
-        context.addTransform('final', (items) => [...items].reverse())
-        return {}
-      },
-    }
-    const list = lists.create('pipeline')
-      .use(reverseFinal)
-      .use(sorting({ initial: { field: 'score' as const, direction: 'desc' as const }, compare }))
-      .use(keepTwo)
-      .use(allEntities())
-      .build()
-    expect(list.ids.get()).toEqual([1, 2])
-  })
-
-  it('supports selection entity and id commands, order, deduplication, and unknown ids', () => {
-    const { store, lists } = setup()
-    const list = lists.create('selected').use(selection()).build()
-    list.selection.replace([row(1), row(2), row(1)])
-    expect(list.ids.get()).toEqual([1, 2])
-    const replacement = { ...row(2), name: 'new two' }
-    list.selection.prepend([replacement, row(3)])
-    expect(list.ids.get()).toEqual([3, 1, 2])
-    expect(store.get(2)).toBe(replacement)
-    list.selection.appendIds([4, 3, 4])
+    const list = lists.create('manual').use(manual()).build()
+    list.manual.replace([row(1), row(2), row(1)])
+    list.manual.prepend([row(3)])
+    list.manual.appendIds([4, 3])
     expect(list.ids.get()).toEqual([3, 1, 2])
     store.upsert(row(4))
     expect(list.ids.get()).toEqual([3, 1, 2, 4])
-    list.selection.prependIds([5, 1])
-    store.upsert(row(5))
-    expect(list.ids.get()).toEqual([5, 3, 1, 2, 4])
+    list.manual.remove(1)
+    expect(list.ids.get()).toEqual([3, 2, 4])
   })
 
-  it('updates only members and synchronizes selection after store delete and clear', () => {
+  it('runs transforms in use order without named phases', () => {
     const { store, lists } = setup()
-    const list = lists.create('selected').use(selection()).build()
-    list.selection.replaceIds([1, 2, 9])
     store.upsertMany([row(1), row(2), row(3)])
-    list.selection.update([{ ...row(1), name: 'member' }, { ...row(3), name: 'outsider' }])
-    expect(store.get(1)?.name).toBe('member')
-    expect(store.get(3)?.name).toBe('row-3')
-    store.delete(2)
-    store.upsert(row(2))
-    expect(list.ids.get()).toEqual([1])
-    store.clear()
-    store.upsert(row(1))
-    expect(list.ids.get()).toEqual([])
-    list.selection.remove(1)
-    list.selection.clear()
-  })
-
-  it('maintains an ordered reactive registry and cascades disposal', () => {
-    const { lists } = setup()
-    let disposed = 0
-    const lifecycle: EntityListPlugin<Row, number, Record<never, never>> = {
+    const reverse: UniversalEntityListPlugin<Row, Record<never, never>> = {
       membership: false,
-      install(context) { context.onDispose(() => { disposed++ }); return {} },
+      install(context) { context.addTransform((items) => [...items].reverse()); return {} },
     }
-    const first = lists.create('first').use(allEntities()).use(lifecycle).build()
-    const second = lists.create('second').use(allEntities()).use(lifecycle).build()
-    expect(lists.keys.get()).toEqual(['first', 'second'])
-    expect(lists.items.get()).toEqual([first, second])
-    expect(lists.get('first')).toBe(first)
-    expect(() => lists.create('first').use(allEntities()).build()).toThrow('already contains')
-    expect(() => lists.group('second', lists.define((list, _args: {}) => list.use(allEntities())))).toThrow('already contains')
-    expect(lists.delete('first')).toBe(true)
-    expect(lists.keys.get()).toEqual(['second'])
-    lists.dispose()
-    lists.dispose()
-    expect(disposed).toBe(2)
+    const list = lists.create('pipeline')
+      .use(allEntities())
+      .use(sorting({ initial: { field: 'score' as const, direction: 'desc' as const }, compare }))
+      .use(reverse)
+      .build()
+    expect(list.ids.get()).toEqual([1, 2, 3])
   })
 
-  it('creates fresh ordered group instances from definition arguments', () => {
+  it('replaces and appends query results and exposes nested services', async () => {
+    const { lists } = setup()
+    const source = query<Row, { page: number }>()
+      .use(queryLoading())
+      .request(async ({ input }) => input.page === 1 ? [row(1), row(2)] : [row(2), row(3)])
+    const list = lists.create('remote').use(source).build()
+    await list.query.replace({ page: 1 })
+    await list.query.append({ page: 2 })
+    expect(list.ids.get()).toEqual([1, 2, 3])
+    expect(list.query.loading.state.get().status).toBe('idle')
+  })
+
+  it('creates argument-aware copies with independent plugin state', () => {
     const { store, lists } = setup()
     store.upsertMany([row(1), row(2, 'b'), row(3)])
-    const definition = lists.define((list, args: Filters) => list
+    const root = lists.create<Filters>('groups')
       .use(allEntities())
-      .use(filtering<Row, Filters>({ initial: args, predicate: (item, filters) => !filters.group || item.group === filters.group }))
-      .use(sorting({ initial: { field: 'score' as const, direction: 'asc' as const }, compare })))
-    const group = lists.group('groups', definition)
-    const a = group.create('a', { group: 'a' })
-    const b = group.create('b', { group: 'b' })
-    expect(group.keys.get()).toEqual(['a', 'b'])
-    expect(group.items.get()).toEqual([a, b])
-    expect(a.ids.get()).toEqual([1, 3])
-    expect(b.ids.get()).toEqual([2])
-    a.filtering.patch({ group: null })
-    expect(b.filtering.state.get()).toEqual({ group: 'b' })
-    expect(() => group.create('a', { group: 'a' })).toThrow('already contains key')
-    expect(group.delete('a')).toBe(true)
-    group.clear()
-    expect(group.items.get()).toEqual([])
-    group.dispose()
+      .use((args) => filtering<Row, Filters>({
+        initial: args,
+        predicate: (item, filters) => !filters.group || item.group === filters.group,
+      }))
+      .use(sorting({ initial: { field: 'score' as const, direction: 'asc' as const }, compare }))
+      .use(copies())
+      .build({ group: 'a' })
+    const second = root.copies.create('b', { group: 'b' })
+    expect(root.ids.get()).toEqual([1, 3])
+    expect(second.ids.get()).toEqual([2])
+    root.filtering.patch({ group: null })
+    expect(second.filtering.state.get()).toEqual({ group: 'b' })
+    expect(root.copies.keys.get()).toEqual(['b'])
+    root.copies.delete('b')
   })
 
-  it('extends EntityLists and rejects duplicate list plugin keys and memberships', () => {
-    let disposed = 0
+  it('supports single and multiple selection without changing membership', () => {
+    const { store, lists } = setup()
+    store.upsertMany([row(1), row(2), row(3)])
+    const single = lists.create('single').use(allEntities()).use(selection({ mode: 'single' })).build()
+    single.selection.selectFirst()
+    expect(single.selection.id.get()).toBe(1)
+    single.selection.select(2)
+    expect(single.selection.item.get()).toBe(store.get(2))
+
+    const multiple = lists.create('multiple').use(allEntities()).use(selection({ mode: 'multiple' })).build()
+    multiple.selection.selectAll()
+    multiple.selection.toggle(2)
+    expect(multiple.selection.ids.get()).toEqual([1, 3])
+    store.delete(1)
+    expect(multiple.selection.ids.get()).toEqual([3])
+  })
+
+  it('installs registry plugins without a registry build step', () => {
     const { store } = setup()
+    let disposed = 0
     const plugin: EntityListsPlugin<Row, number, { label: string }> = {
       install(context) { context.onDispose(() => { disposed++ }); return { label: 'rows' } },
     }
-    const lists = entityLists(store).use(plugin).build()
+    const lists = entityLists(store).use(plugin)
     expect(lists.label).toBe('rows')
-    const duplicateApi = { membership: false, install: () => ({ items: [] }) }
-    expect(() => (lists.create('duplicate').use(allEntities()) as any).use(duplicateApi).build()).toThrow('already exists')
-    expect(() => (lists.create('membership').use(allEntities()) as any).use(selection()).build()).toThrow('exactly one membership')
-    expect(() => (lists.create('missing') as any).build()).toThrow('exactly one membership')
     lists.dispose()
     expect(disposed).toBe(1)
-    expect(store.upsert(row(10))).toEqual(row(10))
   })
 
-  it('prevents plugin installation after list and registry builders are built', () => {
+  it('keeps filtering and sorting state reactive', () => {
     const { store, lists } = setup()
-    const listBuilder = lists.create('built').use(allEntities())
-    listBuilder.build()
-    expect(() => (listBuilder as any).use({ membership: false, install: () => ({ extra: true }) })).toThrow('after build')
-
-    const listsBuilder = entityLists(store)
-    listsBuilder.build()
-    expect(() => (listsBuilder as any).use({ install: () => ({ extra: true }) })).toThrow('after build')
+    store.upsertMany([row(1), row(2, 'b')])
+    const list = lists.create('state')
+      .use(allEntities())
+      .use(filtering<Row, Filters>({ initial: { group: 'a' }, predicate: (item, value) => item.group === value.group }))
+      .use(sorting({ initial: { field: 'name' as const, direction: 'asc' as const }, compare }))
+      .build()
+    const observed = data(list.ids.get())
+    const unsubscribe = list.ids.subscribe((value) => observed.set(value))
+    list.filtering.set({ group: 'b' })
+    expect(readonlyData(observed).get()).toEqual([2])
+    unsubscribe()
   })
 })
+
+const typeContracts = () => {
+  const store = entityStore<Row>().use(identity((item) => item.id)).build()
+  const lists = entityLists(store)
+  // @ts-expect-error a list requires one source plugin
+  lists.create('missing-source').build()
+  // @ts-expect-error allEntities and manual are conflicting sources
+  lists.create('double-source').use(allEntities()).use(manual())
+
+  const single = lists.create('typed-single').use(allEntities()).use(selection({ mode: 'single' })).build()
+  // @ts-expect-error toggle belongs only to multiple selection
+  single.selection.toggle(1)
+
+  const root = lists.create<Filters>('typed-copies').use(allEntities()).use(copies()).build({ group: 'a' })
+  // @ts-expect-error copy args must match the root declaration
+  root.copies.create('wrong', { group: 1 })
+
+  const queryBuilder = query<Row>().use(queryLoading())
+  // @ts-expect-error duplicate query service API keys are rejected
+  queryBuilder.use(queryLoading())
+}
+void typeContracts

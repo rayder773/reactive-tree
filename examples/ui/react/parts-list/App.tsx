@@ -4,14 +4,15 @@ import { ManufacturerView } from './ManufacturerView'
 export function App({ domain }: { domain: PartsDomain }) {
   const entities = domain.entities.entities
   const allParts = domain.allParts.items
-  const allSorting = domain.allParts.sorting.state
+  const allSorting = domain.allParts.query.sorting.state
+  const allLoading = domain.allParts.query.loading.state
   const manufacturerKeys = domain.manufacturerViews.keys
   const manufacturerViews = domain.manufacturerViews.items
   return (
     <div className="parts-page">
       <div className="toolbar">
         <span>{entities.value.size} normalized entities</span>
-        <button type="button" onClick={domain.addPart}>Add Northwind part</button>
+        <span>{allLoading.value.status}</span>
       </div>
 
       <section className="panel">
@@ -39,7 +40,7 @@ export function App({ domain }: { domain: PartsDomain }) {
         <span>Manufacturer views</span>
         <div className="actions">
           {domain.manufacturers
-            .filter((manufacturer) => !manufacturerKeys.value.includes(manufacturer))
+            .filter((manufacturer) => manufacturer !== 'Northwind' && !manufacturerKeys.value.includes(manufacturer))
             .map((manufacturer) => (
               <button
                 key={manufacturer}
@@ -52,6 +53,7 @@ export function App({ domain }: { domain: PartsDomain }) {
         </div>
       </div>
 
+      <ManufacturerView domain={domain} view={domain.northwindView} />
       {manufacturerViews.value.map((view) => (
         <ManufacturerView key={view.id} domain={domain} view={view} />
       ))}

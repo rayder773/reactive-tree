@@ -8,8 +8,8 @@ export function ManufacturerView({
   view: ManufacturerViewModel
 }) {
   const items = view.items
-  const filtering = view.filtering.state
-  const sorting = view.sorting.state
+  const filtering = view.query.filtering.state
+  const sorting = view.query.sorting.state
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -17,13 +17,15 @@ export function ManufacturerView({
           <h2>{filtering.value.manufacturer} view</h2>
           <small>Price {sorting.value.direction}</small>
         </div>
-        <button
-          className="danger"
-          type="button"
-          onClick={() => domain.deleteManufacturerView(filtering.value.manufacturer)}
-        >
-          Remove view
-        </button>
+        {filtering.value.manufacturer !== 'Northwind' && (
+          <button
+            className="danger"
+            type="button"
+            onClick={() => domain.deleteManufacturerView(filtering.value.manufacturer)}
+          >
+            Remove view
+          </button>
+        )}
       </div>
       <table>
         <thead><tr><th>Part</th><th>Price</th><th>Stock</th></tr></thead>

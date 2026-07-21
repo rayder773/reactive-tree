@@ -1,72 +1,97 @@
-import { allEntities, entityLists, entityStore, filtering, identity, sorting } from '../../../core'
+import {
+  copies,
+  entityLists,
+  entityStore,
+  identity,
+  query,
+  queryAbort,
+  queryFiltering,
+  queryPagination,
+  querySorting,
+  queryLoading,
+  selection,
+} from '../../../core'
+import { createPartsRepository, type PartRepository } from './api'
 import type { Part, PartFilters, PartSortField } from './parts.types'
-
-const seed: readonly Part[] = [
-  { id: 1, name: 'Drive belt', manufacturer: 'Northwind', price: 18.5, stock: 42 },
-  { id: 2, name: 'Bearing', manufacturer: 'Contoso', price: 7.25, stock: 120 },
-  { id: 3, name: 'Hydraulic pump', manufacturer: 'Adventure Works', price: 189, stock: 8 },
-  { id: 4, name: 'Pressure valve', manufacturer: 'Northwind', price: 34.75, stock: 23 },
-  { id: 5, name: 'Control relay', manufacturer: 'Contoso', price: 22, stock: 67 },
-  { id: 6, name: 'Seal kit', manufacturer: 'Northwind', price: 12.4, stock: 95 },
-]
-
-const compare = (left: Part, right: Part, field: PartSortField): number => {
-  const a = left[field]
-  const b = right[field]
-  return typeof a === 'string' && typeof b === 'string' ? a.localeCompare(b) : Number(a) - Number(b)
-}
 
 interface ManufacturerArgs { manufacturer: Part['manufacturer'] }
 
+const partsQuery = (
+  repository: PartRepository,
+  filters: PartFilters,
+  sorting: { field: PartSortField; direction: 'asc' | 'desc' },
+) => query<Part>()
+  .use(queryLoading())
+  .use(queryAbort())
+  .use(querySorting<PartSortField>(sorting))
+  .use(queryFiltering<PartFilters>(filters))
+  .use(queryPagination({ pageSize: 100 }))
+  .request(async ({ signal, filtering, pagination, sorting }) => {
+    const page = pagination.state.get()
+    const response = await repository.queryParts({
+      offset: (page.page - 1) * page.pageSize,
+      limit: page.pageSize,
+      sorting: sorting.state.get(),
+      filters: filtering.state.get(),
+    }, signal)
+    pagination.setTotal(response.total)
+    return response.items
+  })
+
 export function createPartsDomain() {
-  const entities = entityStore<Part>()
-    .use(identity((part) => part.id))
-    .build()
-  const lists = entityLists(entities).build()
-  entities.upsertMany(seed)
+  const repository = createPartsRepository()
+  const entities = entityStore<Part>().use(identity((part) => part.id)).build()
+  const lists = entityLists(entities)
 
   const allParts = lists
     .create('all-parts')
-    .use(allEntities())
-    .use(sorting({ initial: { field: 'name', direction: 'asc' }, compare }))
+    .use(partsQuery(repository, { manufacturer: null }, { field: 'name', direction: 'asc' }))
+    .use(selection({ mode: 'multiple' }))
     .build()
 
-  const manufacturerDefinition = lists.define(
-    (list, args: ManufacturerArgs) => list
-      .use(allEntities())
-      .use(filtering<Part, PartFilters>({
-        initial: { manufacturer: args.manufacturer },
-        predicate: (part, filters) => !filters.manufacturer || part.manufacturer === filters.manufacturer,
-      }))
-      .use(sorting({ initial: { field: 'price', direction: 'asc' }, compare })),
-  )
-  const manufacturerViews = lists.group('manufacturer-views', manufacturerDefinition)
-  manufacturerViews.create('Northwind', { manufacturer: 'Northwind' })
+  const northwindView = lists
+    .create<ManufacturerArgs>('manufacturer-view')
+    .use((args) => partsQuery(
+      repository,
+      { manufacturer: args.manufacturer },
+      { field: 'price', direction: 'asc' },
+    ))
+    .use(selection({ mode: 'single' }))
+    .use(copies())
+    .build({ manufacturer: 'Northwind' })
 
-  let nextId = Math.max(...seed.map((part) => part.id)) + 1
+  const ready = Promise.all([
+    allParts.query.replace(),
+    northwindView.query.replace(),
+  ]).then(() => undefined, () => undefined)
+
   return {
+    repository,
     entities,
     lists,
+    ready,
     allParts,
-    manufacturerViews,
+    northwindView,
+    manufacturerViews: northwindView.copies,
     manufacturers: ['Northwind', 'Contoso', 'Adventure Works'] as const,
-    addPart() {
-      const id = nextId++
-      entities.upsert({ id, name: `New part ${id}`, manufacturer: 'Northwind', price: 25 + id, stock: 10 })
-    },
     increasePrice(id: number) {
       entities.update(id, (part) => ({ ...part, price: Math.round((part.price + 1) * 100) / 100 }))
     },
     deletePart(id: number) { entities.delete(id) },
-    toggleAllSort() {
-      const current = allParts.sorting.state.get()
-      allParts.sorting.setDirection(current.direction === 'asc' ? 'desc' : 'asc')
+    async toggleAllSort() {
+      const current = allParts.query.sorting.state.get()
+      allParts.query.sorting.setDirection(current.direction === 'asc' ? 'desc' : 'asc')
+      await allParts.query.replace().catch(() => undefined)
     },
     createManufacturerView(manufacturer: Part['manufacturer']) {
-      return manufacturerViews.create(manufacturer, { manufacturer })
+      const view = northwindView.copies.create(manufacturer, { manufacturer })
+      void view.query.replace().catch(() => undefined)
+      return view
     },
     deleteManufacturerView(manufacturer: PartFilters['manufacturer']) {
-      return manufacturer ? manufacturerViews.delete(manufacturer) : false
+      return manufacturer && manufacturer !== 'Northwind'
+        ? northwindView.copies.delete(manufacturer)
+        : false
     },
     dispose() {
       lists.dispose()
@@ -76,4 +101,4 @@ export function createPartsDomain() {
 }
 
 export type PartsDomain = ReturnType<typeof createPartsDomain>
-export type ManufacturerView = ReturnType<PartsDomain['manufacturerViews']['items']['get']>[number]
+export type ManufacturerView = PartsDomain['northwindView'] | ReturnType<PartsDomain['manufacturerViews']['items']['get']>[number]

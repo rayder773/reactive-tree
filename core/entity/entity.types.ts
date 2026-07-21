@@ -1,7 +1,6 @@
-import type { Data, ReadonlyData, Unsubscribe } from '../data'
+import type { ReadonlyData, Unsubscribe } from '../data'
+import type { SortDirection, SortingState } from '../services/sorting-service'
 
-export type PluginApi = Record<PropertyKey, unknown>
-export type PluginApiOf<TPlugin> = TPlugin extends { readonly __api?: infer TApi } ? TApi : never
 export type NoPluginKeyOverlap<TExisting, TAdded> = Extract<keyof TExisting, keyof TAdded> extends never
   ? unknown
   : { readonly __duplicatePluginKeys: Extract<keyof TExisting, keyof TAdded> }
@@ -38,18 +37,15 @@ export interface EntityStorePluginContext<TEntity, TId> {
 }
 
 export interface EntityStorePlugin<TEntity, TId, TApi extends object = object> {
-  readonly __api?: TApi
   readonly kind?: 'plugin'
   install(context: EntityStorePluginContext<TEntity, TId>): TApi
 }
 
 export interface EntityStoreIdentityPlugin<TEntity, TId> {
-  readonly __api?: Record<never, never>
   readonly kind: 'identity'
   readonly getId: (entity: TEntity) => TId
 }
 
-export type ListPhase = 'filtering' | 'sorting' | 'final'
 export type EntityListTransform<TEntity> = (items: readonly TEntity[]) => readonly TEntity[]
 
 export interface EntityListCore<TEntity, TId> {
@@ -64,10 +60,11 @@ export type EntityList<TEntity, TId = unknown, TApi extends object = object> = E
 export interface EntityListPluginContext<TEntity, TId> {
   readonly store: EntityStoreCore<TEntity, TId>
   readonly membership: ReadonlyData<readonly TId[]>
+  readonly visibleIds: ReadonlyData<readonly TId[]>
   getId(entity: TEntity): TId
   setMembership(ids: readonly TId[]): void
   setMembershipSource(source: () => readonly TId[]): void
-  addTransform(phase: ListPhase, transform: EntityListTransform<TEntity>): void
+  addTransform(transform: EntityListTransform<TEntity>): void
   watch<T>(state: ReadonlyData<T>): void
   onDispose(callback: () => void): void
 }
@@ -78,28 +75,9 @@ export interface EntityListPlugin<
   TApi extends object = object,
   TMembership extends boolean = false,
 > {
-  readonly __api?: TApi
   readonly membership: TMembership
   install(context: EntityListPluginContext<TEntity, TId>): TApi
 }
-
-export interface EntityListsCore<TEntity, TId> {
-  readonly keys: ReadonlyData<readonly string[]>
-  readonly items: ReadonlyData<readonly EntityList<TEntity, TId, object>[]>
-  create(name: string): import('./entity-list').EntityListBuilder<TEntity, TId>
-  get(name: string): EntityList<TEntity, TId, object> | undefined
-  delete(name: string): boolean
-  define<TArgs, TList extends EntityList<TEntity, TId, object> = EntityList<TEntity, TId, object>>(
-    factory: (list: import('./entity-list').EntityListBuilder<TEntity, TId>, args: TArgs) => EntityListBuildable<TEntity, TId, TList>,
-  ): EntityListDefinition<TEntity, TId, TArgs, TList>
-  group<TArgs, TList extends EntityList<TEntity, TId, object>>(
-    name: string,
-    definition: EntityListDefinition<TEntity, TId, TArgs, TList>,
-  ): EntityListGroup<TEntity, TId, TArgs, TList>
-  dispose(): void
-}
-
-export type EntityLists<TEntity, TId, TApi extends object = object> = EntityListsCore<TEntity, TId> & TApi
 
 export interface EntityListsPluginContext<TEntity, TId> {
   readonly store: EntityStoreCore<TEntity, TId>
@@ -107,34 +85,28 @@ export interface EntityListsPluginContext<TEntity, TId> {
 }
 
 export interface EntityListsPlugin<TEntity, TId, TApi extends object = object> {
-  readonly __api?: TApi
   install(context: EntityListsPluginContext<TEntity, TId>): TApi
 }
 
-export interface EntityListBuildable<TEntity, TId, TList extends EntityList<TEntity, TId, object>> {
-  build(): TList
-}
-
-export interface EntityListDefinition<TEntity, TId, TArgs, TList extends EntityList<TEntity, TId, object>> {
-  readonly factory: (
-    list: import('./entity-list').EntityListBuilder<TEntity, TId>,
-    args: TArgs,
-  ) => EntityListBuildable<TEntity, TId, TList>
-}
-
-export interface EntityListGroup<TEntity, TId, TArgs, TList extends EntityList<TEntity, TId, object>> {
-  readonly name: string
+export interface EntityListsCore<TEntity, TId> {
+  readonly store: EntityStoreCore<TEntity, TId>
   readonly keys: ReadonlyData<readonly string[]>
-  readonly items: ReadonlyData<readonly TList[]>
-  create(key: string, args: TArgs): TList
-  get(key: string): TList | undefined
-  delete(key: string): boolean
-  clear(): void
+  readonly items: ReadonlyData<readonly EntityList<TEntity, TId, object>[]>
+  create<TArgs = void>(name: string): import('./entity-list').EntityListBuilder<TEntity, TId, TArgs>
+  get(name: string): EntityList<TEntity, TId, object> | undefined
+  delete(name: string): boolean
   dispose(): void
 }
 
-export interface SelectionApi<TEntity, TId> {
-  readonly selection: {
+export type EntityLists<TEntity, TId, TApi extends object = object> = EntityListsCore<TEntity, TId> & TApi & {
+  use<TAdded extends object>(
+    plugin: EntityListsPlugin<TEntity, TId, TAdded>
+      & NoPluginKeyOverlap<EntityListsCore<TEntity, TId> & TApi, TAdded>,
+  ): EntityLists<TEntity, TId, TApi & TAdded>
+}
+
+export interface ManualApi<TEntity, TId> {
+  readonly manual: {
     replace(entities: readonly TEntity[]): void
     append(entities: readonly TEntity[]): void
     prepend(entities: readonly TEntity[]): void
@@ -147,8 +119,6 @@ export interface SelectionApi<TEntity, TId> {
   }
 }
 
-export type SortDirection = 'asc' | 'desc'
-export interface SortingState<TField> { field: TField; direction: SortDirection }
 export interface SortingApi<TField> {
   readonly sorting: {
     readonly state: ReadonlyData<SortingState<TField>>
@@ -168,6 +138,59 @@ export interface FilteringApi<TFilters extends object> {
   }
 }
 
-export interface MutableListPluginContext<TEntity, TId> extends EntityListPluginContext<TEntity, TId> {
-  readonly membershipData: Data<readonly TId[]>
+export interface SingleSelectionApi<TEntity, TId> {
+  readonly selection: {
+    readonly mode: 'single'
+    readonly id: ReadonlyData<TId | null>
+    readonly item: ReadonlyData<TEntity | undefined>
+    select(id: TId): void
+    selectFirst(): void
+    clear(): void
+    keepVisible(): void
+    isSelected(id: TId): boolean
+  }
+}
+
+export interface MultipleSelectionApi<TEntity, TId> {
+  readonly selection: {
+    readonly mode: 'multiple'
+    readonly ids: ReadonlyData<readonly TId[]>
+    readonly items: ReadonlyData<readonly TEntity[]>
+    select(id: TId): void
+    deselect(id: TId): void
+    toggle(id: TId): void
+    selectAll(): void
+    selectFirst(): void
+    clear(): void
+    keepVisible(): void
+    isSelected(id: TId): boolean
+  }
+}
+
+export type SelectionApi<TEntity, TId, TMode extends 'single' | 'multiple'> = TMode extends 'single'
+  ? SingleSelectionApi<TEntity, TId>
+  : MultipleSelectionApi<TEntity, TId>
+
+export type QueryCommand<TInput, TEntity> = [TInput] extends [void]
+  ? () => Promise<readonly TEntity[]>
+  : (input: TInput) => Promise<readonly TEntity[]>
+
+export type QueryApi<TEntity, TInput, TServices extends object> = {
+  readonly query: TServices & {
+    readonly replace: QueryCommand<TInput, TEntity>
+    readonly append: QueryCommand<TInput, TEntity>
+  }
+}
+
+export interface CopiesCollection<TArgs, TCopy> {
+  readonly keys: ReadonlyData<readonly string[]>
+  readonly items: ReadonlyData<readonly TCopy[]>
+  create(key: string, args: TArgs): TCopy
+  get(key: string): TCopy | undefined
+  delete(key: string): boolean
+  clear(): void
+}
+
+export interface CopiesApi<TArgs, TCopy> {
+  readonly copies: CopiesCollection<TArgs, TCopy>
 }
