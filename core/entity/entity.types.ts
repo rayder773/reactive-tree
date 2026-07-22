@@ -171,26 +171,6 @@ export type SelectionApi<TEntity, TId, TMode extends 'single' | 'multiple'> = TM
   ? SingleSelectionApi<TEntity, TId>
   : MultipleSelectionApi<TEntity, TId>
 
-export type QueryResult<TEntity> =
-  | { status: 'applied'; operationId: number; entities: readonly TEntity[] }
-  | {
-      status: 'skipped'
-      operationId: number
-      reason: 'superseded' | 'busy' | 'cancelled' | 'disposed'
-      entities?: readonly TEntity[]
-    }
-
-export type QueryCommand<TInput, TEntity> = [TInput] extends [void]
-  ? () => Promise<QueryResult<TEntity>>
-  : (input: TInput) => Promise<QueryResult<TEntity>>
-
-export type QueryApi<TEntity, TInput, TServices extends object> = {
-  readonly query: TServices & {
-    readonly replace: QueryCommand<TInput, TEntity>
-    readonly append: QueryCommand<TInput, TEntity>
-  }
-}
-
 export interface CopiesCollection<TArgs, TCopy> {
   readonly keys: ReadonlyData<readonly string[]>
   readonly items: ReadonlyData<readonly TCopy[]>

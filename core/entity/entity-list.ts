@@ -1,6 +1,14 @@
 import { data, readonlyData, type Data, type ReadonlyData, type Unsubscribe } from '../data'
 import { SelectionService, type SortingState } from '../services'
-import type { QuerySourcePlugin } from './entity-query'
+import {
+  QUERY_SOURCE_INTERNAL,
+  type AnyQuerySource,
+  type QueryApi,
+  type QueryOperationMode,
+  type QuerySource,
+  type QuerySourceInput,
+  type QuerySourceServices,
+} from '../services/query'
 import {
   ENTITY_STORE_INTERNAL,
   type CopiesApi,
@@ -12,7 +20,6 @@ import {
   type FilteringApi,
   type ManualApi,
   type NoPluginKeyOverlap,
-  type QueryApi,
   type SelectionApi,
   type SortingApi,
 } from './entity.types'
@@ -151,11 +158,11 @@ export class EntityListBuilder<
   use(
     plugin: ManualPlugin & (THasMembership extends true ? { readonly __membershipAlreadyInstalled: never } : unknown),
   ): EntityListBuilder<TEntity, TId, TArgs, TApi & ManualApi<TEntity, TId>, true, THasCopies>
-  use<TInput, TServices extends object>(
-    plugin: QuerySourcePlugin<TEntity, TInput, TServices>
-      & NoPluginKeyOverlap<EntityListCore<TEntity, TId> & TApi, QueryApi<TEntity, TInput, TServices>>
+  use<TSource extends AnyQuerySource<TEntity>>(
+    plugin: TSource
+      & NoPluginKeyOverlap<EntityListCore<TEntity, TId> & TApi, QueryApi<TEntity, QuerySourceInput<TSource>, QuerySourceServices<TSource>>>
       & (THasMembership extends true ? { readonly __membershipAlreadyInstalled: never } : unknown),
-  ): EntityListBuilder<TEntity, TId, TArgs, TApi & QueryApi<TEntity, TInput, TServices>, true, THasCopies>
+  ): EntityListBuilder<TEntity, TId, TArgs, TApi & QueryApi<TEntity, QuerySourceInput<TSource>, QuerySourceServices<TSource>>, true, THasCopies>
   use<TMode extends 'single' | 'multiple'>(
     plugin: SelectionPlugin<TMode>
       & NoPluginKeyOverlap<EntityListCore<TEntity, TId> & TApi, SelectionApi<TEntity, TId, TMode>>,
@@ -170,9 +177,9 @@ export class EntityListBuilder<
         ? THasMembership extends true ? { readonly __membershipAlreadyInstalled: never } : unknown
         : unknown),
   ): EntityListBuilder<TEntity, TId, TArgs, TApi & TAdded, TMembership extends true ? true : THasMembership, THasCopies>
-  use<TInput, TServices extends object>(
-    factory: (args: TArgs) => QuerySourcePlugin<TEntity, TInput, TServices>,
-  ): EntityListBuilder<TEntity, TId, TArgs, TApi & QueryApi<TEntity, TInput, TServices>, true, THasCopies>
+  use<TSource extends AnyQuerySource<TEntity>>(
+    factory: (args: TArgs) => TSource,
+  ): EntityListBuilder<TEntity, TId, TArgs, TApi & QueryApi<TEntity, QuerySourceInput<TSource>, QuerySourceServices<TSource>>, true, THasCopies>
   use<TAdded extends object, TMembership extends boolean>(
     factory: (args: TArgs) => EntityListPlugin<TEntity, TId, TAdded, TMembership> | UniversalEntityListPlugin<TEntity, TAdded, TMembership>,
   ): EntityListBuilder<TEntity, TId, TArgs, TApi & TAdded, TMembership extends true ? true : THasMembership, THasCopies>
@@ -241,7 +248,13 @@ export class EntityListBuilder<
   }
 
   #instantiate(id: string, args: TArgs, onDispose?: () => void): EntityList<TEntity, TId, object> {
-    const plugins = this.#recipes.map((recipe) => typeof recipe === 'function' ? recipe(args) : recipe)
+    const plugins = this.#recipes.map((recipe) => {
+      const plugin = typeof recipe === 'function' ? recipe(args) : recipe
+      const candidate = plugin as unknown as { readonly kind?: string }
+      return candidate.kind === 'query-source'
+        ? querySourceRuntime(plugin as unknown as QuerySource<TEntity, unknown, object>)
+        : plugin
+    })
     if (plugins.filter((plugin) => plugin.membership).length !== 1) {
       throw new Error(`Entity list "${id}" requires exactly one membership plugin`)
     }
@@ -261,7 +274,9 @@ export class EntityListBuilder<
       if (plugin.kind === 'item-selection') {
         return selectionRuntime<TEntity, TId>((plugin as SelectionPlugin<'single' | 'multiple'>).mode)
       }
-      if (plugin.kind === 'query-source') return plugin as unknown as RuntimePlugin<TEntity, TId>
+      if (plugin.kind === 'query-source') {
+        return querySourceRuntime(plugin as QuerySource<TEntity, unknown, object>)
+      }
     }
     return plugin as RuntimePlugin<TEntity, TId>
   }
@@ -309,6 +324,38 @@ const manualRuntime = <TEntity, TId>(): EntityListPlugin<TEntity, TId, ManualApi
         clear() { context.setMembership([]) },
       },
     }
+  },
+})
+
+const querySourceRuntime = <TEntity, TId>(
+  source: QuerySource<TEntity, unknown, object>,
+): EntityListPlugin<TEntity, TId, QueryApi<TEntity, unknown, object>, true> => ({
+  membership: true,
+  install(context) {
+    const contains = (values: readonly TId[], id: TId) => (
+      values.some((value) => Object.is(value, id))
+    )
+    const apply = (mode: QueryOperationMode, entities: readonly TEntity[]) => {
+      context.store.upsertMany(entities)
+      const ids = entities.map(context.getId)
+      if (mode === 'replace') {
+        context.setMembership(unique(ids))
+        return
+      }
+      const current = context.membership.get()
+      context.setMembership([
+        ...current,
+        ...unique(ids).filter((id) => !contains(current, id)),
+      ])
+    }
+    context.setMembershipSource(() => context.membership.get())
+    context.onDispose(source[QUERY_SOURCE_INTERNAL].onApply(apply))
+    context.onDispose(context.store[ENTITY_STORE_INTERNAL].onDelete((id) => {
+      context.setMembership(context.membership.get().filter((value) => !Object.is(value, id)))
+    }))
+    context.onDispose(context.store[ENTITY_STORE_INTERNAL].onClear(() => context.setMembership([])))
+    context.onDispose(() => source.dispose())
+    return { query: source }
   },
 })
 
